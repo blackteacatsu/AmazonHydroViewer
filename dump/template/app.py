@@ -1,162 +1,164 @@
-import faicons as fa
-import plotly.express as px
+from shiny import App, ui, reactive, render
+from shinywidgets import output_widget, render_plotly
+import plotly.graph_objects as go
+import xarray as xr
+import pandas as pd
+import regionmask
+import numpy as np
+import json
+import urllib.request
+import geopandas as gpd
 
-# Load data and compute static values
-from shared import app_dir, tips
-from shinywidgets import render_plotly
+# Load the datasets
+ensemble_avg_dataset_location = '/Users/kris/amazonforcast/data/forecast/output/LIS_HIST_Forecast_June_02_to_05_mean.nc'
+ensemble_members_dataset_location = '/Users/kris/amazonforcast/data/forecast/output/LIS_HIST_Forecast_June_02_to_05.nc'
 
-from shiny import reactive, render
-from shiny.express import input, ui
+ensemble_avg_dataset = xr.open_dataset(ensemble_avg_dataset_location)
+ensemble_members_dataset = xr.open_dataset(ensemble_members_dataset_location)
 
-bill_rng = (min(tips.total_bill), max(tips.total_bill))
+longitude = ensemble_avg_dataset['east_west']
+latitude = ensemble_avg_dataset['north_south']
+time = ensemble_avg_dataset['time']
 
-# Add page title and sidebar
-ui.page_opts(title="Restaurant tipping", fillable=True)
+# Load the GeoJSON file
+geojson_url = "https://raw.githubusercontent.com/blackteacatsu/spring_2024_envs_research_amazon_ldas/main/resources/hybas_sa_lev05_areaofstudy.geojson"
 
-with ui.sidebar(open="desktop"):
-    ui.input_slider(
-        "total_bill",
-        "Bill amount",
-        min=bill_rng[0],
-        max=bill_rng[1],
-        value=bill_rng,
-        pre="$",
-    )
-    ui.input_checkbox_group(
-        "time",
-        "Food service",
-        ["Lunch", "Dinner"],
-        selected=["Lunch", "Dinner"],
-        inline=True,
-    )
-    ui.input_action_button("reset", "Reset filter")
-
-# Add main content
-ICONS = {
-    "user": fa.icon_svg("user", "regular"),
-    "wallet": fa.icon_svg("wallet"),
-    "currency-dollar": fa.icon_svg("dollar-sign"),
-    "ellipsis": fa.icon_svg("ellipsis"),
-}
-
-with ui.layout_columns(fill=False):
-    with ui.value_box(showcase=ICONS["user"]):
-        "Total tippers"
-
-        @render.express
-        def total_tippers():
-            tips_data().shape[0]
-
-    with ui.value_box(showcase=ICONS["wallet"]):
-        "Average tip"
-
-        @render.express
-        def average_tip():
-            d = tips_data()
-            if d.shape[0] > 0:
-                perc = d.tip / d.total_bill
-                f"{perc.mean():.1%}"
-
-    with ui.value_box(showcase=ICONS["currency-dollar"]):
-        "Average bill"
-
-        @render.express
-        def average_bill():
-            d = tips_data()
-            if d.shape[0] > 0:
-                bill = d.total_bill.mean()
-                f"${bill:.2f}"
+# Open geojson url as geopanda dataframe
+hybas_sa_lev05 = gpd.read_file(geojson_url) 
 
 
-with ui.layout_columns(col_widths=[6, 6, 12]):
-    with ui.card(full_screen=True):
-        ui.card_header("Tips data")
+with urllib.request.urlopen(geojson_url) as url:
+    jdata = json.loads(url.read().decode())
 
-        @render.data_frame
-        def table():
-            return render.DataGrid(tips_data())
+list_of_variables = [
+    'Rainf_tavg', 'Qair_f_tavg', 'Qs_tavg',
+    'Evap_tavg', 'SoilMoist_inst', 'SoilTemp_inst'
+]
 
-    with ui.card(full_screen=True):
-        with ui.card_header(class_="d-flex justify-content-between align-items-center"):
-            "Total bill vs tip"
-            with ui.popover(title="Add a color variable", placement="top"):
-                ICONS["ellipsis"]
-                ui.input_radio_buttons(
-                    "scatter_color",
-                    None,
-                    ["none", "sex", "smoker", "day", "time"],
-                    inline=True,
-                )
+# Shiny App UI
+app_ui = ui.page_fluid(
+    ui.h1("Mapping - Forecast Data"),
+    ui.hr(),
+    ui.input_slider("time_index", "Select Time", 0, len(time) - 1, value=0, step=4),
+    ui.input_radio_buttons("var_selector", "Select Variable", list_of_variables, selected="Rainf_tavg"),
+    ui.input_radio_buttons(
+        "profile_selector", "Select Depth Profile",
+        choices={"0": "0-10cm", "1": "10-40cm", "2": "40-100cm", "3": "100-200cm"},
+        selected="0"
+    ),
+    ui.hr(),
+    ui.div(output_widget("map_plot"), style="display:inline-block; width:50%;"),
+    ui.div(output_widget("box_plot"), style="display:inline-block; width:50%;"),
+)
 
-        @render_plotly
-        def scatterplot():
-            color = input.scatter_color()
-            return px.scatter(
-                tips_data(),
-                x="total_bill",
-                y="tip",
-                color=None if color == "none" else color,
-                trendline="lowess",
+# Shiny Server
+def server(input, output, session):
+    # Reactive value for storing selected PFAF_ID
+    selected_pfaf_id = reactive.Value(None)
+
+    # Render the Map
+    @output
+    @render_plotly
+    def map_plot():
+
+        selected_var = ensemble_avg_dataset[input.var_selector()]
+        selected_var = selected_var.fillna('')
+
+        time_index = input.time_index()
+        profile_index = int(input.profile_selector())
+
+        # Create heatmap data
+        if input.var_selector() == 'SoilMoist_inst':
+            heatmap_data = selected_var.isel(time=time_index, SoilMoist_profiles=profile_index)
+        elif input.var_selector() == 'SoilTemp_inst':
+            heatmap_data = selected_var.isel(time=time_index, SoilTemp_profiles=profile_index)
+        else:
+            heatmap_data = selected_var.isel(time=time_index)
+
+        # Create the heatmap
+        fig = go.Figure(data=go.Heatmap(z=heatmap_data, x=longitude, y=latitude))
+
+        # Add polygons from GeoJSON
+        for feature in jdata['features']:
+            pfaf_id = feature['properties']['PFAF_ID']
+            if feature['geometry']['type'] == 'Polygon':
+                x, y = zip(*feature['geometry']['coordinates'][0])
+                fig.add_trace(go.Scatter(
+                    x=x, y=y, mode='lines', line=dict(color='white', width=1.5),
+                    text=[pfaf_id] * len(x), hoverinfo='text',
+                    hovertemplate='PFAF_ID: %{text}<extra></extra>',
+                    showlegend=False
+                ))
+            elif feature['geometry']['type'] == 'MultiPolygon':
+                for polygon in feature['geometry']['coordinates']:
+                    x, y = zip(*polygon[0])
+                    fig.add_trace(go.Scatter(
+                        x=x, y=y, mode='lines', line=dict(color='white', width=1.5),
+                        text=[pfaf_id] * len(x), hoverinfo='text',
+                        hovertemplate='PFAF_ID: %{text}<extra></extra>',
+                        showlegend=False
+                    ))
+
+        # Finalize layout
+        fig.update_layout(
+            title=f"{input.var_selector()}",
+            xaxis_title="Longitude",
+            yaxis_title="Latitude",
+            height=600,
+            width=800,
+            margin=dict(l=0, r=0, t=30, b=0),
+            clickmode='event+select'  # Enable click events
+        )
+        return fig
+
+    # Update selected region on click
+    @reactive.Effect
+    @reactive.event(input["map_plot_click"])  # React to clicks on the map
+    def update_selected_region():
+        click_data = input["map_plot_click"]
+        if click_data and 'points' in click_data:
+            selected_pfaf_id.set(int(click_data['points'][0]['text']))
+
+    # Render the Boxplot
+    @output
+    @render_plotly
+    def box_plot():
+        # Default PFAF_ID if none is selected
+        pfaf_id = selected_pfaf_id.get() or 61581
+
+        aoi = hybas_sa_lev05[hybas_sa_lev05.PFAF_ID == pfaf_id]
+
+        #aoi = [feature for feature in jdata['features'] if feature['properties']['PFAF_ID'] == pfaf_id]
+
+        """
+        if not aoi:
+            return go.Figure().update_layout(
+                title=f"No data for PFAF_ID {pfaf_id}",
+                height=600, width=800
             )
+        """
 
-    with ui.card(full_screen=True):
-        with ui.card_header(class_="d-flex justify-content-between align-items-center"):
-            "Tip percentages"
-            with ui.popover(title="Add a color variable"):
-                ICONS["ellipsis"]
-                ui.input_radio_buttons(
-                    "tip_perc_y",
-                    "Split by:",
-                    ["sex", "smoker", "day", "time"],
-                    selected="day",
-                    inline=True,
-                )
+        # Create the region mask
+        mask = regionmask.mask_3D_geopandas(aoi, longitude, latitude)
 
-        @render_plotly
-        def tip_perc():
-            from ridgeplot import ridgeplot
+        # Apply mask and summarize data
+        variable = input.var_selector()
+        masked_data = ensemble_members_dataset[variable].where(mask)
+        summary = masked_data.groupby("time").mean(["north_south", "east_west"]).to_dataframe().reset_index()
 
-            dat = tips_data()
-            dat["percent"] = dat.tip / dat.total_bill
-            yvar = input.tip_perc_y()
-            uvals = dat[yvar].unique()
+        # Create the boxplot
+        fig = go.Figure()
+        fig.add_trace(go.Box(y=summary[variable], x= summary['time'].astype(str), name="Values", boxmean=True))
 
-            samples = [[dat.percent[dat[yvar] == val]] for val in uvals]
+        # Finalize layout
+        fig.update_layout(
+            title=f"{variable} for PFAF_ID {pfaf_id}",
+            xaxis_title="Time",
+            yaxis_title=f"{variable}",
+            height=600,
+            width=800
+        )
+        return fig
 
-            plt = ridgeplot(
-                samples=samples,
-                labels=uvals,
-                bandwidth=0.01,
-                colorscale="viridis",
-                colormode="row-index",
-            )
-
-            plt.update_layout(
-                legend=dict(
-                    orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5
-                )
-            )
-
-            return plt
-
-
-ui.include_css(app_dir / "styles.css")
-
-# --------------------------------------------------------
-# Reactive calculations and effects
-# --------------------------------------------------------
-
-
-@reactive.calc
-def tips_data():
-    bill = input.total_bill()
-    idx1 = tips.total_bill.between(bill[0], bill[1])
-    idx2 = tips.time.isin(input.time())
-    return tips[idx1 & idx2]
-
-
-@reactive.effect
-@reactive.event(input.reset)
-def _():
-    ui.update_slider("total_bill", value=bill_rng)
-    ui.update_checkbox_group("time", selected=["Lunch", "Dinner"])
+# Create the Shiny app
+app = App(app_ui, server)
