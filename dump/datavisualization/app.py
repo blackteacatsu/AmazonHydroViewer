@@ -146,18 +146,20 @@ def server(input, output, session):
             ds_ensemble_members.close()
 
             if input.var_selector() == 'SoilMoist_inst': # handler if user select soil moisture
-                #summary  = summary.SoilMoist_profiles == input.profile_selector()
+                summary  = summary[summary["SoilMoist_profiles"] == int(input.profile_selector())]
                 #print(summary)
 
-                return px.scatter_3d(summary, 
-                                     y=input.var_selector(), 
-                                     x = 'time', 
-                                     z = 'SoilMoist_profiles', 
-                                     color='time', 
-                                     title=f'Displaying zonal average in {polygon()} @profile level {input.profile_selector()}')
+                return px.box(summary, 
+                              y=input.var_selector(), 
+                              x = 'time', color='time', 
+                              title=f'Displaying zonal average in {polygon()} @profile level {input.profile_selector()}')
 
             elif input.var_selector() == 'SoilTemp_inst': # handler if user select soil temperature
-                return
+                summary  = summary[summary["SoilTemp_profiles"] == int(input.profile_selector())]
+                return px.box(summary, 
+                              y=input.var_selector(), 
+                              x = 'time', color='time', 
+                              title=f'Displaying zonal average in {polygon()} @profile level {input.profile_selector()}')
                 
             else:
                 return px.box(summary, 
