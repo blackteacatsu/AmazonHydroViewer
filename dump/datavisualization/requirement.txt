@@ -1,0 +1,9 @@
+faicons
+shiny
+shinywidgets
+xarray
+plotly
+json
+urllib
+geopandas
+regionmask
