@@ -11,8 +11,21 @@ from modules import calculation, interface, mapping
 
 # --- Setup page ui ---#
 app_ui = ui.page_fillable(
-    ui.head_content(ui.include_css(shared.css_file_path)), # include external css style
-    ui.h1(shared.web_app_title), # Make title of the page
+    ui.head_content(ui.include_css(shared.css_file_path),  # include external css style
+                    print(shared.css_file_path),
+                    ui.tags.link(rel = "icon", type="image/x-icon", href="https://raw.githubusercontent.com/blackteacatsu/dokkuments/refs/heads/main/static/img/university_shield_blue.ico")
+                    ),
+    ui.card(
+        {"style": "background-color: #ffffff; height: 72px"},
+        ui.layout_columns(
+            ui.tags.img(src ="https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/refs/heads/main/dump/datavisualization/assets/university_shield_blue_iiL_icon.ico", 
+                        height="72px", width="72px"),
+            ui.h1(shared.web_app_title), # Make title of the page
+            ui.tags.img(src="https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/logoserviramazonia.png", 
+                        height="72px", width="auto"),
+            ui.tags.img(src = "https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/NASA-Logo-Large.png", 
+                        height="72px", width="95px", right="100%", position="absolute")
+            )),
 
     # Add sidebar layout to the page
     ui.layout_sidebar(    
@@ -20,24 +33,28 @@ app_ui = ui.page_fillable(
         interface.build_sidebar_content(),
 
         # Defining the content outside the sidebar
-        ui.card(
-            ui.output_ui('time_index'),
-            ui.output_text_verbatim("value")
-                ),
-        
         #ui.output_text_verbatim('selected_pfaf_id'),
+        ui.layout_columns(
+            ui.card(
+                ui.card_header(ui.tags.h2("Map of the Amazon Basin \N{World Map}")),
+                output_widget('heatmap')),
 
-        ui.card(
-            ui.layout_columns(
-                output_widget('heatmap'), 
-                output_widget('boxplot'),
-            ),
-            style = 'dashboard-container')), 
-    title=shared.web_app_title)
+            ui.card(
+                ui.card_header(ui.tags.h2("Click on polygon to compute zonal average/maximum")),
+                output_widget('boxplot'))
+                ),
+            
+        ui.card( {"style": "width: 360px"},
+            ui.card_header(ui.tags.h2("Select Time \N{Tear-Off Calendar}")),
+            ui.row(ui.output_ui('time_index_slider'),
+                   ui.output_text_verbatim("time_index")),
+                fill=False,)
+        ),
+    title="Amazon HydroViewer",
+)
 
 
 def server(input, output, session):
-    
     @reactive.calc
     def redirect_nc_file():
         if input.var_selector() == 'Streamflow_tavg':
@@ -48,14 +65,14 @@ def server(input, output, session):
     
     @output
     @render.ui
-    def time_index():
+    def time_index_slider():
         ds_ensemble_members = redirect_nc_file()
         lon, lat, time = mapping.get_standard_coordinates(ds_ensemble_members)
-        print(time[0])
+        #print(time[0])
         if time is not None:
             return ui.input_slider(
                 "time_slider", 
-                "Time Index", 
+                "Move the slider below to switch time instance", 
                 min=0, 
                 max=len(time)-1,
                 animate=True, 
@@ -71,7 +88,7 @@ def server(input, output, session):
 
     @output
     @render.text
-    def value():
+    def time_index():
         ds_ensemble_members = redirect_nc_file()
         lon, lat, time = mapping.get_standard_coordinates(ds_ensemble_members)
         return f"{interface.format_date(time[input.time_slider()].values)}"
@@ -79,12 +96,11 @@ def server(input, output, session):
     @reactive.effect
     def update_heatmap_figure():
         ds_ensemble_members = redirect_nc_file()
-        #ds_ensemble_members = xr.open_dataset(shared.surface_ensemble_members_path)
         lon, lat, time = mapping.get_standard_coordinates(ds_ensemble_members)
 
-        selected_var = ds_ensemble_members[input.var_selector()]
-        selected_var = selected_var.mean(dim="ensemble") # Get average value across all 7-ensemble members
-        selected_var = selected_var.fillna('') # Replacing NaN data point
+        selected_var = ds_ensemble_members[input.var_selector()].mean(dim="ensemble").fillna("")
+        #selected_var = selected_var.mean(dim="ensemble") # Get average value across all 7-ensemble members
+        #selected_var = selected_var.fillna('') # Replacing NaN data point
         ds_ensemble_members.close()
         #print(selected_var)
 
@@ -92,7 +108,7 @@ def server(input, output, session):
         if len(heatmapfig.data) > 1:
             heatmapfig.data = heatmapfig.data[:1]  # Keep only the first trace (polygon)
 
-        print(input.time_slider())
+        #print(input.time_slider())
         if input.var_selector() == 'SoilMoist_inst':
             heatmapfig.add_trace(
                 go.Heatmap(z = selected_var.isel(time = input.time_slider(), 

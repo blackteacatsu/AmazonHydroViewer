@@ -24,6 +24,6 @@ surface_ensemble_members_path = Path(__file__).parent / 'data' / 'monthly_ldas_s
 
 routing_ensemble_members_path = Path(__file__).parent / 'data' / 'monthly_ldas_routing_2024_jul30.nc'
 
-web_app_title = 'Amazon HydroViewer'
+web_app_title = 'Hydrometeorology of The Amazon Basin'
 
 documentation_site_url = 'https://blackteacatsu.github.io/dokkuments/'

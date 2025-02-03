@@ -1,16 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap');
 
-.dashboard {
-    width: 1900px;
-    height: 1600px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 50px;
-    margin-bottom: 50px;
-    background-color: #010103;
-    border: 1px solid #fafafa;
-    border-radius: 10px;
-}
 
 body{
     background-color: #708090;
@@ -18,22 +7,16 @@ body{
 }
 
 h1{
-    color: #ffffff; 
-    font-size: 35px;
-    margin: 15px;
+    color: #000000; 
+    font-size: 36px;
+    margin-left: 0px;
 }
 
 h2{
-    color: #ffffff;
-    font-size: 28px;
-    margin: 15px;
-    text-align: justify;
-}
-
-p{
-    color: #ffffff;
-    font-size: 16px;
-    margin: 15px;
+    color: #000000;
+    font-size: 20px;
+    margin-top: 5px;
+    margin-bottom: 5px;
     text-align: justify;
 }
 

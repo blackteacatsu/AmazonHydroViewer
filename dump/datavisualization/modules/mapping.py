@@ -80,8 +80,8 @@ def buildregion(path_to_geojson):
     heatmap.update_layout(  
                 xaxis_title='Longitude',
                 yaxis_title='Latitude',
-                height = 450,
-                width = 600, 
+                #height = 450,
+                #width = 600, 
                 margin = {'l': 0, 'r': 0, 't': 0, 'b': 0})
 
     return heatmap
