@@ -9,6 +9,14 @@ list_of_variables = {'Rainf_tavg' : 'Average precipitation',
                      'SoilTemp_inst': 'Soil temperature',
                      'Streamflow_tavg': 'Stream flow'}
 
+## Global variables
+surface_variable_short = ['Rainf_tavg', 'Qair_f_tavg',
+                          'Qs_tavg','Evap_tavg',
+                          'SoilMoist_inst', 'SoilTemp_inst']
+
+surface_variable_unit = {'Rainf_tavg':'mm/day', 'Qair_f_tavg':'g/kg', 'Qs_tavg':'', 
+                         'Evap_tavg':'mm/day', 'SoilMoist_inst':'m^3 m-3', 'SoilTemp_inst':'degree Celsius', 'Streamflow_tavg': 'Stream flow'}
+
 # list of profile indices and corresponding meaning
 list_of_profiles = {0: '0-10cm', 
                     1: '10-40cm', 

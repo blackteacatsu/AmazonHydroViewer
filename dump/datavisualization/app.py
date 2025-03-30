@@ -10,21 +10,21 @@ from modules import calculation, interface, mapping
 
 
 # --- Setup page ui ---#
-app_ui = ui.page_fillable(
+app_ui = ui.page_auto(
     ui.head_content(ui.include_css(shared.css_file_path),  # include external css style
                     print(shared.css_file_path),
                     ui.tags.link(rel = "icon", type="image/x-icon", href="https://raw.githubusercontent.com/blackteacatsu/dokkuments/refs/heads/main/static/img/university_shield_blue.ico")
                     ),
     ui.card(
-        {"style": "background-color: #ffffff; height: 72px"},
+        {"style": "background-color: #ffffff; height: 100px"},
         ui.layout_columns(
             ui.tags.img(src ="https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/refs/heads/main/dump/datavisualization/assets/university_shield_blue_iiL_icon.ico", 
                         height="72px", width="72px"),
             ui.h1(shared.web_app_title), # Make title of the page
-            ui.tags.img(src="https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/logoserviramazonia.png", 
-                        height="72px", width="auto"),
-            ui.tags.img(src = "https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/NASA-Logo-Large.png", 
-                        height="72px", width="95px", right="100%", position="absolute")
+            #ui.tags.img(src="https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/logoserviramazonia.png", 
+                        #height="72px", width="auto"),
+            #ui.tags.img(src = "https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/NASA-Logo-Large.png", 
+                        #height="72px", width="95px", right="100%", position="absolute")
             )),
 
     # Add sidebar layout to the page
@@ -50,8 +50,8 @@ app_ui = ui.page_fillable(
                    ui.output_text_verbatim("time_index")),
                 fill=False,)
         ),
-    title="Amazon HydroViewer",
-)
+    #title="Amazon HydroViewer",
+full_width=True)
 
 
 def server(input, output, session):
@@ -182,6 +182,6 @@ def server(input, output, session):
                               y=input.var_selector(), 
                               x = 'time', 
                               color='time', 
-                              title=f'Displaying spread of ensemble members average in zone {polygon()}')
+                              title=f'Displaying spread of ensemble members averaged for zone {polygon()}')
         
 app=App(app_ui, server)

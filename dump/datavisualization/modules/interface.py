@@ -37,7 +37,7 @@ def build_sidebar_content():
         )
 
 """
-Define callback function that captures 
+Define callback function that captures user's cursor click on map
 """
 def on_polygon_click(trace):
     # Reactive value to store selected PFAF_ID
@@ -58,3 +58,12 @@ Create a function to format the datetime values
 """
 def format_date(datetime_value):
     return str(datetime_value)[:7]  # Keep the month part
+
+"""
+Create a welcome modal message
+"""
+def _():
+    m = ui.modal(
+        f'This interactive map provides access to estimates of monthly meteorological and hydrological conditions in the Amazon basin, derived from output of a <a href="https://{new_test}">text of the link</a>. The original implementation is described in Recalde et al. (2022).',
+        title='Welcome !'
+    )
