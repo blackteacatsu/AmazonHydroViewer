@@ -20,4 +20,19 @@ h2{
     text-align: justify;
 }
 
+.header {
+    margin-bottom: 75px;
+}
+
+.header img {
+    float: left;
+    width: 100px;
+    height: 100px;
+}
+  
+.header h1 {
+position: relative;
+top: 18px;
+left: 10px;
+}
 

@@ -33,7 +33,7 @@ def build_sidebar_content():
              target='_blank', 
              class_="btn btn-primary"),
         # 
-        ui.popover(ui.a('About this page', class_="btn btn-primary"),'Welcome! \n This interactive map provides access to estimates of monthly meteorological and hydrological conditions in the Amazon basin, derived from output of a Land Data Assimilation System. The original implementation is described in Recalde et al. (2022). The current, updated system is maintained by Dr. Prakrut Kansara, with visualizations designed by Kris Su. It is supported by a NASA SERVIR award. Please direct questions to Ben Zaitchik (zaitchik@jhu.edu).')
+        ui.popover(ui.a('About this page', class_="btn btn-primary"),'Welcome! \n This interactive map provides access to estimates of monthly meteorological and hydrological conditions in the Amazon basin, derived from output of a Land Data Assimilation System. The original implementation is described in Recalde et al. (2022). The current, updated system is maintained by Dr. Prakrut Kansara, with visualizations designed by Kris Su. Please direct questions to Ben Zaitchik (zaitchik@jhu.edu).') #It is supported by a NASA SERVIR award
         )
 
 """

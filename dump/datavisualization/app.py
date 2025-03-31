@@ -1,4 +1,4 @@
-from shiny import ui, render, App, reactive
+from shiny import ui, render, App, reactive, Session
 from shinywidgets import output_widget, render_plotly, register_widget
 import xarray as xr
 import plotly.express as px
@@ -10,22 +10,29 @@ from modules import calculation, interface, mapping
 
 
 # --- Setup page ui ---#
-app_ui = ui.page_auto(
-    ui.head_content(ui.include_css(shared.css_file_path),  # include external css style
-                    print(shared.css_file_path),
-                    ui.tags.link(rel = "icon", type="image/x-icon", href="https://raw.githubusercontent.com/blackteacatsu/dokkuments/refs/heads/main/static/img/university_shield_blue.ico")
-                    ),
-    ui.card(
-        {"style": "background-color: #ffffff; height: 100px"},
-        ui.layout_columns(
-            ui.tags.img(src ="https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/refs/heads/main/dump/datavisualization/assets/university_shield_blue_iiL_icon.ico", 
-                        height="72px", width="72px"),
-            ui.h1(shared.web_app_title), # Make title of the page
-            #ui.tags.img(src="https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/logoserviramazonia.png", 
-                        #height="72px", width="auto"),
-            #ui.tags.img(src = "https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/dump/datavisualization/assets/NASA-Logo-Large.png", 
-                        #height="72px", width="95px", right="100%", position="absolute")
-            )),
+
+page_dependencies = ui.head_content(
+    ui.include_css(shared.css_file_path),
+    ui.tags.link(rel="icon", type='image/x-icon', href='https://raw.githubusercontent.com/blackteacatsu/dokkuments/refs/heads/main/static/img/university_shield_blue.ico'),
+    ui.tags.title('Amazon HydroViewer')
+)
+
+page_header = ui.tags.div(
+    ui.tags.div(
+        ui.tags.a(
+            ui.tags.img(src='https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/refs/heads/main/dump/datavisualization/assets/university_shield_blue_iiL_icon.ico', height='50px'),
+            href='https://pages.jh.edu/bzaitch1/',
+        ),
+        #id = 'logo-top',
+        #class_='navigation-logo'
+    ),
+    ui.tags.h1(shared.web_app_title),
+    class_ = 'header'
+)
+
+app_ui = ui.page_fluid(
+    page_dependencies,
+    page_header,
 
     # Add sidebar layout to the page
     ui.layout_sidebar(    
@@ -48,27 +55,29 @@ app_ui = ui.page_auto(
             ui.card_header(ui.tags.h2("Select Time \N{Tear-Off Calendar}")),
             ui.row(ui.output_ui('time_index_slider'),
                    ui.output_text_verbatim("time_index")),
-                fill=False,)
+                fill=True,)
         ),
-    #title="Amazon HydroViewer",
 full_width=True)
 
 
 def server(input, output, session):
     @reactive.calc
     def redirect_nc_file():
-        if input.var_selector() == 'Streamflow_tavg':
-            return xr.open_dataset(shared.routing_ensemble_members_path)
-            #return ds_ensemble_members
+        if input.data_selector() =='Deterministic':
+            if input.var_selector() == 'Streamflow_tavg':
+                return xr.open_dataset(shared.routing_ensemble_members_path)
+            else:
+                return xr.open_dataset(shared.surface_ensemble_members_path)
         else:
-            return xr.open_dataset(shared.surface_ensemble_members_path)
+            print(str(shared.probabilistic_data_path))
+            return xr.open_dataset(str(shared.probabilistic_data_path) + f'\prob2024_12_31tercile_probability_max_{input.var_selector()}.nc')
     
     @output
     @render.ui
     def time_index_slider():
         ds_ensemble_members = redirect_nc_file()
-        lon, lat, time = mapping.get_standard_coordinates(ds_ensemble_members)
-        #print(time[0])
+        _, _, time = mapping.get_standard_coordinates(ds_ensemble_members)
+
         if time is not None:
             return ui.input_slider(
                 "time_slider", 
@@ -82,27 +91,25 @@ def server(input, output, session):
                 time_format='2024-08-31 00:00:00')
         return ui.div("No dataset loaded or time variable missing.")
 
-    heatmapfig = mapping.buildregion(shared.hydrobasins_lev05_url)
-    register_widget('heatmap', heatmapfig)
-    polygon = interface.on_polygon_click(heatmapfig.data[0])
-
     @output
     @render.text
     def time_index():
         ds_ensemble_members = redirect_nc_file()
-        lon, lat, time = mapping.get_standard_coordinates(ds_ensemble_members)
+        _, _, time = mapping.get_standard_coordinates(ds_ensemble_members)
         return f"{interface.format_date(time[input.time_slider()].values)}"
-    
+
+    heatmapfig = mapping.buildregion(shared.hydrobasins_lev05_url)
+    register_widget('heatmap', heatmapfig)
+    polygon = interface.on_polygon_click(heatmapfig.data[0])
+
     @reactive.effect
     def update_heatmap_figure():
         ds_ensemble_members = redirect_nc_file()
-        lon, lat, time = mapping.get_standard_coordinates(ds_ensemble_members)
+        lon, lat, _ = mapping.get_standard_coordinates(ds_ensemble_members)
 
-        selected_var = ds_ensemble_members[input.var_selector()].mean(dim="ensemble").fillna("")
-        #selected_var = selected_var.mean(dim="ensemble") # Get average value across all 7-ensemble members
-        #selected_var = selected_var.fillna('') # Replacing NaN data point
+        selected_var_data = ds_ensemble_members[input.var_selector()].mean(dim="ensemble")
         ds_ensemble_members.close()
-        #print(selected_var)
+        #print(selected_var_data)
 
         # Clear the previous heatmap trace (if it exists)
         if len(heatmapfig.data) > 1:
@@ -111,24 +118,25 @@ def server(input, output, session):
         #print(input.time_slider())
         if input.var_selector() == 'SoilMoist_inst':
             heatmapfig.add_trace(
-                go.Heatmap(z = selected_var.isel(time = input.time_slider(), 
-                                                 SoilMoist_profiles = int(input.profile_selector())), 
-                                                 x=lon, 
-                                                 y=lat, 
-                                                 hoverinfo='skip'
-                                                 ))
+                go.Heatmap(z = selected_var_data.isel(time = input.time_slider(), SoilMoist_profiles = int(input.profile_selector())).fillna(""), 
+                           x=lon, 
+                           y=lat, 
+                           hoverinfo='skip'))
 
         elif input.var_selector() == 'SoilTemp_inst':
             heatmapfig.add_trace(
-                go.Heatmap(z = selected_var.isel(time = input.time_slider(), 
-                                                 SoilTemp_profiles = int(input.profile_selector())), 
-                                                 x=lon, 
-                                                 y=lat, 
-                                                 hoverinfo='skip'
-                                                 ))
+                go.Heatmap(z = selected_var_data.isel(time = input.time_slider(), SoilTemp_profiles = int(input.profile_selector())).fillna(""), 
+                           x=lon, 
+                           y=lat, 
+                           hoverinfo='skip'
+                    ))
         else:
+            if input.var_selector() == 'Streamflow_tavg':
+                selected_var_data = selected_var_data.where(selected_var_data <= 50, drop=True)
+                #print(selected_var_data)
+            
             heatmapfig.add_trace(
-                go.Heatmap(z = selected_var.isel(time = input.time_slider()), 
+                go.Heatmap(z = selected_var_data.isel(time = input.time_slider()).fillna(""), 
                            x=lon, 
                            y=lat,
                            hoverinfo='skip'
@@ -151,10 +159,10 @@ def server(input, output, session):
                         font=dict(size=20)
                     )]
                 )
-        #
+        
         else:
             #print(input.var_selector())
-            summary = calculation.get_zonal_average_or_maximum(shared.hydrobasins_lev05_url, 
+            summary = calculation.get_zonal_statistics(shared.hydrobasins_lev05_url, 
                                                                ds_ensemble_members, 
                                                                int(polygon()), 
                                                                input.var_selector(), 
@@ -163,11 +171,10 @@ def server(input, output, session):
 
             if input.var_selector() == 'SoilMoist_inst': # handler if user select soil moisture
                 summary  = summary[summary["SoilMoist_profiles"] == int(input.profile_selector())]
-                #print(summary)
-
                 return px.box(summary, 
                               y=input.var_selector(), 
-                              x = 'time', color='time', 
+                              x = 'time', 
+                              color='time', 
                               title=f'Displaying zonal average in {polygon()} @profile level {input.profile_selector()}')
 
             elif input.var_selector() == 'SoilTemp_inst': # handler if user select soil temperature

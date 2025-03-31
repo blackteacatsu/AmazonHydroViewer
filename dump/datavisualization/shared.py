@@ -28,9 +28,11 @@ css_file_path = Path(__file__).parent / "styles.css"
 
 hydrobasins_lev05_url = 'https://raw.githubusercontent.com/blackteacatsu/spring_2024_envs_research_amazon_ldas/main/resources/hybas_sa_lev05_areaofstudy.geojson'
 
-surface_ensemble_members_path = Path(__file__).parent / 'data' / 'monthly_ldas_surfacemodel_2024_jul30.nc'
+surface_ensemble_members_path = Path(__file__).parent / 'data' / 'deterministic' / 'monthly_ldas_surfacemodel_2024_jul30.nc'
 
-routing_ensemble_members_path = Path(__file__).parent / 'data' / 'monthly_ldas_routing_2024_jul30.nc'
+routing_ensemble_members_path = Path(__file__).parent / 'data' / 'deterministic' / 'monthly_ldas_routing_2024_jul30.nc'
+
+probabilistic_data_path = Path(__file__).parent / 'data' / 'probabilistic'
 
 web_app_title = 'Hydrometeorology of The Amazon Basin'
 

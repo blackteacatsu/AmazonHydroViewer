@@ -2,8 +2,11 @@ import regionmask
 import geopandas as gpd
 import xarray as xr
 
+#def extract_river_network_with_attributes():
 
-def get_zonal_average_or_maximum(geodataframe_path: str, gridded_ds: xr.Dataset, pfaf_id: int, variable: str, lon:xr.DataArray, lat:xr.DataArray):
+
+
+def get_zonal_statistics(geodataframe_path: str, gridded_ds: xr.Dataset, pfaf_id: int, variable: str, lon:xr.DataArray, lat:xr.DataArray):
 
     try:
         # Read the geodataframe
