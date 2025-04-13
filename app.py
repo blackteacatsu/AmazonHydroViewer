@@ -11,17 +11,20 @@ from modules import calculation, interface, mapping
 
 # --- Setup page ui ---#
 
+# Build <head> contents
 page_dependencies = ui.head_content(
     ui.include_css(shared.css_file_path),
     ui.tags.link(rel="icon", type='image/x-icon', href='https://raw.githubusercontent.com/blackteacatsu/dokkuments/refs/heads/main/static/img/university_shield_blue.ico'),
-    ui.tags.title('Amazon HydroViewer')
+    ui.tags.title('Amazon HydroViewer'),
+    ui.tags.meta(name="apple-mobile-web-app-status-bar-style", content="#000000"),
+    ui.tags.meta(name="apple-mobile-web-app-capable", content="yes"),
 )
 
 page_header = ui.tags.div(
     ui.tags.div(
         ui.tags.a(
-            ui.tags.img(src='https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/refs/heads/main/dump/datavisualization/assets/university_shield_blue_iiL_icon.ico', height='50px'),
-            href='https://pages.jh.edu/bzaitch1/',
+            ui.tags.img(src='https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/refs/heads/main/dump/datavisualization/assets/university_shield_blue_iiL_icon.ico'),
+            href='https://pages.jh.edu/bzaitch1/'
         ),
         #id = 'logo-top',
         #class_='navigation-logo'
@@ -61,6 +64,7 @@ full_width=True)
 
 
 def server(input, output, session):
+
     @reactive.calc
     def redirect_nc_file():
         if input.data_selector() =='Deterministic':
@@ -117,49 +121,47 @@ def server(input, output, session):
 
         #print(input.time_slider())
         if input.var_selector() == 'SoilMoist_inst':
-            heatmapfig.add_trace(
-                go.Heatmap(z = selected_var_data.isel(time = input.time_slider(), SoilMoist_profiles = int(input.profile_selector())).fillna(""), 
-                           x=lon, 
-                           y=lat, 
-                           hoverinfo='skip'))
+            z_data = selected_var_data.isel(time = input.time_slider(), SoilMoist_profiles = int(input.profile_selector())).fillna("")
 
         elif input.var_selector() == 'SoilTemp_inst':
-            heatmapfig.add_trace(
-                go.Heatmap(z = selected_var_data.isel(time = input.time_slider(), SoilTemp_profiles = int(input.profile_selector())).fillna(""), 
-                           x=lon, 
-                           y=lat, 
-                           hoverinfo='skip'
-                    ))
+            z_data = selected_var_data.isel(time = input.time_slider(), SoilTemp_profiles = int(input.profile_selector())).fillna("")
+
         else:
             if input.var_selector() == 'Streamflow_tavg':
                 selected_var_data = selected_var_data.where(selected_var_data <= 50, drop=True)
-                #print(selected_var_data)
-            
-            heatmapfig.add_trace(
-                go.Heatmap(z = selected_var_data.isel(time = input.time_slider()).fillna(""), 
-                           x=lon, 
-                           y=lat,
-                           hoverinfo='skip'
-                           ))  
+            z_data = selected_var_data.isel(time = input.time_slider()).fillna("")
+
+        heatmapfig.add_trace(
+            go.Heatmap(z = z_data, 
+                        x=lon, 
+                        y=lat,
+                        hoverinfo='skip'
+            )
+        )  
     
     # Boxplot 
     @render_plotly
     def boxplot():
         ds_ensemble_members = redirect_nc_file()
-        lon, lat, time = mapping.get_standard_coordinates(ds_ensemble_members)
+        lon, lat, _ = mapping.get_standard_coordinates(ds_ensemble_members)
+
+        ensemblebox = go.Figure()
 
         # Initially display an empty figure
         if polygon() == 'Waiting input': 
-            return px.box().update_layout(
-                    xaxis=dict(visible=False),
-                    yaxis=dict(visible=False),
-                    annotations=[dict(
-                        text=f"{polygon()}",
-                        showarrow=False,
-                        font=dict(size=20)
-                    )]
-                )
+            ensemblebox.update_layout(
+                xaxis = dict(visible=False), 
+                yaxis=dict(visible=False), 
+                annotations = [dict(
+                text=f"{polygon()}",
+                showarrow=False,
+                font=dict(size=16),
+                align='center'
+                )]
         
+            )
+        
+        # When the user gives an input value by clicking
         else:
             #print(input.var_selector())
             summary = calculation.get_zonal_statistics(shared.hydrobasins_lev05_url, 
@@ -171,24 +173,37 @@ def server(input, output, session):
 
             if input.var_selector() == 'SoilMoist_inst': # handler if user select soil moisture
                 summary  = summary[summary["SoilMoist_profiles"] == int(input.profile_selector())]
-                return px.box(summary, 
-                              y=input.var_selector(), 
-                              x = 'time', 
-                              color='time', 
-                              title=f'Displaying zonal average in {polygon()} @profile level {input.profile_selector()}')
-
+            
             elif input.var_selector() == 'SoilTemp_inst': # handler if user select soil temperature
                 summary  = summary[summary["SoilTemp_profiles"] == int(input.profile_selector())]
+            
+            # Loop through unique times to assign auto colors
+            for t_idx, t in enumerate(sorted(summary['time'].unique())):
+                trace_data = summary[summary['time'] == t]
+                ensemblebox.add_trace(go.Box(
+                    y=trace_data[input.var_selector()],
+                    name=str(t),  # This creates the legend label
+                    marker_color=None,  # Let Plotly pick auto color
+                    boxmean=True  # Optional: show mean as a line
+                ))
+            
+            ensemblebox.add_trace(go.Box(y=summary[input.var_selector()], 
+                                         x = summary['time'], 
+                                         #color=summary['time'], 
+                                         text=f'Displaying zonal average in {polygon()} @profile level {input.profile_selector()}'))
+        return ensemblebox
+
+"""
                 return px.box(summary, 
                               y=input.var_selector(), 
                               x = 'time', color='time', 
                               title=f'Displaying zonal average in {polygon()} @profile level {input.profile_selector()}')
                 
             else:
-                return px.box(summary, 
-                              y=input.var_selector(), 
-                              x = 'time', 
-                              color='time', 
+                return go.Box(
+                              y=summary[input.var_selector()], 
+                              x = summary['time'], 
+                              name=summary['time'], 
                               title=f'Displaying spread of ensemble members averaged for zone {polygon()}')
-        
+""" 
 app=App(app_ui, server)

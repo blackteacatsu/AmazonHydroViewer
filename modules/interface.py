@@ -33,8 +33,7 @@ def build_sidebar_content():
              target='_blank', 
              class_="btn btn-primary"),
         # 
-        ui.popover(ui.a('About this page', class_="btn btn-primary"),'Welcome! \n This interactive map provides access to estimates of monthly meteorological and hydrological conditions in the Amazon basin, derived from output of a Land Data Assimilation System. The original implementation is described in Recalde et al. (2022). The current, updated system is maintained by Dr. Prakrut Kansara, with visualizations designed by Kris Su. Please direct questions to Ben Zaitchik (zaitchik@jhu.edu).') #It is supported by a NASA SERVIR award
-        )
+    )
 
 """
 Define callback function that captures user's cursor click on map
@@ -62,8 +61,38 @@ def format_date(datetime_value):
 """
 Create a welcome modal message
 """
-def _():
-    m = ui.modal(
-        f'This interactive map provides access to estimates of monthly meteorological and hydrological conditions in the Amazon basin, derived from output of a <a href="https://{new_test}">text of the link</a>. The original implementation is described in Recalde et al. (2022).',
-        title='Welcome !'
+def info_modal():
+    ui.modal_show(
+        ui.modal(
+            ui.tags.strong(ui.tags.h3("The Amazon Hydrometeorology Viewer")),
+            ui.tags.p(
+                "A web-based NetCDF data visualizer"
+            ),
+            ui.tags.hr(),
+            ui.tags.strong(ui.tags.h4("Welcome message,")),
+            ui.tags.p(
+            """
+            This interactive map provides access to estimates of monthly meteorological 
+            and hydrological conditions in the Amazon basin, derived from output of 
+            a Land Data Assimilation System. The original implementation is described in """,
+            ui.tags.a("Recalde et al. (2022).", href = "https://doi.org/10.1175/JHM-D-21-0081.1"),
+
+            """ 
+            The current, updated system is maintained by Dr. Prakrut Kansara, 
+            with visualizations designed by Kris Su. Please direct questions to
+            """, ui.tags.a("Ben Zaitchik.", href = "zaitchik@jhu.edu"),
+            style="""
+            text-align: justify;
+            word-break:break-word;
+            hyphens: auto;
+            """,
+            ),
+            #ui.tags.hr(),
+            #ui.dataset_information,
+            #ui.tags.hr(),
+            #ui.missing_note,
+            size="l",
+            easy_close=True,
+            footer=ui.modal_button("Close"),
+        )
     )

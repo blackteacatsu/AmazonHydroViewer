@@ -1,2 +1,3 @@
 dump/test bench
-dump/datavisualization/data
+data
+__pycache__
