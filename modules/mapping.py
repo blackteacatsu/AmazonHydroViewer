@@ -85,14 +85,3 @@ def buildregion(path_to_geojson):
                 margin = {'l': 0, 'r': 0, 't': 0, 'b': 0})
 
     return heatmap
-
-"""def buildboxplot():
-    return px.box().update_layout(
-                    xaxis=dict(visible=False),
-                    yaxis=dict(visible=False),
-                    annotations=[dict(
-                        text=f"{polygon()}",
-                        showarrow=False,
-                        font=dict(size=20)
-                    )]
-                )"""

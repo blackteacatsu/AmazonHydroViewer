@@ -23,6 +23,19 @@ list_of_profiles = {0: '0-10cm',
                     2: '40-100cm', 
                     3: '100-200cm'}
 
+# list of prob data category
+list_of_pcate = {
+    0:'Below noraml',
+    1:'Near normal',
+    2:'Above normal'
+}
+
+# List of Plotly colorscales (add more if needed)
+colorscales = [
+    'Viridis', 'Cividis', 'Plasma', 'Magma', 'Inferno', 
+    'Turbo', 'YlGnBu', 'RdBu', 'Picnic', 'Jet'
+]
+
 # get external style sheet
 css_file_path = Path(__file__).parent / "styles.css"
 
