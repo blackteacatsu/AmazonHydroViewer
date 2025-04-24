@@ -3,7 +3,7 @@ from shinywidgets import output_widget, render_plotly, register_widget
 import xarray as xr
 import plotly.express as px
 import plotly.graph_objects as go
-
+import asyncio
 import shared
 
 from modules import calculation, interface, mapping
@@ -54,19 +54,36 @@ app_ui = ui.page_fluid(
                 output_widget('boxplot'))
                 ),
             
-        ui.card( {"style": "width: 360px"},
+        ui.card(#{"style": "width: 360px"},
             ui.card_header(ui.tags.h2("Select Time \N{Tear-Off Calendar}")),
             ui.row(ui.output_ui('time_index_slider'),
                    ui.output_text_verbatim("time_index")),
-                fill=True,)
-        ),
-full_width=True)
+            ui.download_button('downloadData',  'Download'),
+                fill=True),
+
+        ui.card(
+            ui.card_header('General forecast information'),
+            ui.tags.p(
+                ui.tags.h3('Ensemble forecasting'),
+                ui.tags.div('Instead of making a single forecast of the most ' \
+                'likely weather, a set (or ensemble) of forecasts  is  produced.  This  set  of ' \
+                'forecasts aims to give an indication of ' \
+                'the range of possible future states of ' \
+                'the atmosphere. ')
+            )
+        )
+    ), full_width=True)
 
 
 def server(input, output, session):
 
     interface.info_modal()
 
+    @render.download(filename=shared.surface_ensemble_members_path)
+    async def downloadData():
+        await asyncio.sleep(0.25)
+        yield '12'
+    
     @reactive.calc
     def redirect_and_get_nc_file():
         if input.data_selector() =='Deterministic':
@@ -76,7 +93,7 @@ def server(input, output, session):
                 ds = xr.open_dataset(shared.surface_ensemble_members_path)
         else: # if probabilistic data type is chosen
             print(str(shared.probabilistic_data_path))
-            ds = xr.open_dataset(str(shared.probabilistic_data_path) + f'\prob_2024_12_31_tercile_probability_max_{input.var_selector()}.nc')
+            ds = xr.open_dataset(str(shared.probabilistic_data_path) + f'/prob_2024_12_31_tercile_probability_max_{input.var_selector()}.nc')
 
         lon, lat, time = mapping.get_standard_coordinates(ds)
         return ds, lon, lat, time
@@ -113,6 +130,10 @@ def server(input, output, session):
     def update_heatmap_figure():
         ds_ensemble_members, lon, lat, _ = redirect_and_get_nc_file()
 
+        # Clear the previous heatmap trace (if it exists)
+        if len(heatmapfig.data) > 1:
+            heatmapfig.data = heatmapfig.data[:1]  # Keep only the first trace (polygon)
+
         if 'category' in ds_ensemble_members.dims: # handle probabilistic 
             for category_index in sorted(ds_ensemble_members['category'].values):
                 z_data = ds_ensemble_members[input.var_selector()].isel(
@@ -121,13 +142,13 @@ def server(input, output, session):
                 ).fillna("")
                 
                 colorscale = shared.colorscales[category_index % len(shared.colorscales)]
-                print(colorscale)
-
+                #print(colorscale)
+                print(z_data)
                 heatmapfig.add_trace((go.Heatmap(z=z_data, 
                                                  x=lon, y=lat, 
                                                  hoverinfo='skip', 
                                                  name=shared.list_of_pcate.get(category_index),
-                                                 colorbar=dict(title = shared.list_of_pcate.get(category_index), x = 1 + (category_index+1)*0.5), 
+                                                 colorbar=dict(title = shared.list_of_pcate.get(category_index), x = 1 + (category_index)*0.5), 
                                                  colorscale=colorscale, zmin=40, zmax=100)
                 ))
             return heatmapfig
@@ -135,10 +156,6 @@ def server(input, output, session):
         else: 
             selected_var_data = ds_ensemble_members[input.var_selector()].mean(dim="ensemble")
             ds_ensemble_members.close()
-
-            # Clear the previous heatmap trace (if it exists)
-            if len(heatmapfig.data) > 1:
-                heatmapfig.data = heatmapfig.data[:1]  # Keep only the first trace (polygon)
 
             if input.var_selector() == 'SoilMoist_inst':
                 z_data = selected_var_data.isel(time = input.time_slider(), 

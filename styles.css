@@ -2,7 +2,7 @@
 
 
 body{
-    background-color: #708090;
+    background-color: #ffffff;
     font-family: 'Space Grotesk', 'sans-serif';
 }
 
@@ -21,10 +21,18 @@ h2{
     text-align: justify;
 }
 
+.card_header {
+    color: #000000;
+    font-size: 20px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    text-align: justify;
+}
+
 .header {
     margin-top: 18px;
     margin-bottom: 75px;
-    background-color: aliceblue;
+    background-color: rgba(240, 248, 255, 0);
 }
 
 .header img {

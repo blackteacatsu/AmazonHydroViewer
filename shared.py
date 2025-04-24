@@ -32,9 +32,13 @@ list_of_pcate = {
 
 # List of Plotly colorscales (add more if needed)
 colorscales = [
+    "Blues", 'Yellows', "Reds"
+]
+
+"""
     'Viridis', 'Cividis', 'Plasma', 'Magma', 'Inferno', 
     'Turbo', 'YlGnBu', 'RdBu', 'Picnic', 'Jet'
-]
+"""
 
 # get external style sheet
 css_file_path = Path(__file__).parent / "styles.css"
@@ -45,7 +49,7 @@ surface_ensemble_members_path = Path(__file__).parent / 'data' / 'deterministic'
 
 routing_ensemble_members_path = Path(__file__).parent / 'data' / 'deterministic' / 'monthly_ldas_routing_2024_jul30.nc'
 
-probabilistic_data_path = Path(__file__).parent / 'data' / 'probabilistic'
+probabilistic_data_path = Path(__file__).parent / 'data' / 'get_ldas_probabilistic_output'
 
 web_app_title = 'Hydrometeorology of The Amazon Basin'
 
