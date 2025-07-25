@@ -77,11 +77,18 @@ def buildregion(path_to_geojson):
         hovertemplate='PFAF_ID: %{text}<extra></extra>'
     ))
 
-    heatmap.update_layout(  
-                xaxis_title='Longitude',
-                yaxis_title='Latitude',
-                #height = 450,
-                #width = 600, 
-                margin = {'l': 0, 'r': 0, 't': 0, 'b': 0})
+    heatmap.update_layout(
+        xaxis_title='Longitude',
+        yaxis_title='Latitude',
+        height = 450,
+        width = 600, 
+        margin={'l': 0, 'r': 0, 't': 0, 'b': 0},
+        #legend=dict(
+            #orientation="h",
+            #yanchor="bottom",
+            #y=1.02,
+            #xanchor="right",
+            #x=1)
+    )
 
     return heatmap

@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import asyncio
 import shared
+import pooch
 
 from modules import calculation, interface, mapping
 
@@ -77,13 +78,14 @@ app_ui = ui.page_fluid(
 
 def server(input, output, session):
 
-    interface.info_modal()
-
+    #interface.info_modal()
+    """
     @render.download(filename=shared.surface_ensemble_members_path)
     async def downloadData():
         await asyncio.sleep(0.25)
         yield '12'
-    
+    """
+
     @reactive.calc
     def redirect_and_get_nc_file():
         if input.data_selector() =='Deterministic':
@@ -93,7 +95,8 @@ def server(input, output, session):
                 ds = xr.open_dataset(shared.surface_ensemble_members_path)
         else: # if probabilistic data type is chosen
             print(str(shared.probabilistic_data_path))
-            ds = xr.open_dataset(str(shared.probabilistic_data_path) + f'/prob_2024_12_31_tercile_probability_max_{input.var_selector()}.nc')
+            temp_file = pooch.retrieve(url=shared.probabilistic_data_path + f'/prob_2024_12_31_tercile_probability_max_{input.var_selector()}_lvl_{input.profile_selector()}.nc', known_hash=None)
+            ds = xr.open_dataset(temp_file)
 
         lon, lat, time = mapping.get_standard_coordinates(ds)
         return ds, lon, lat, time
@@ -145,11 +148,22 @@ def server(input, output, session):
                 #print(colorscale)
                 print(z_data)
                 heatmapfig.add_trace((go.Heatmap(z=z_data, 
-                                                 x=lon, y=lat, 
+                                                 x=lon, 
+                                                 y=lat, 
                                                  hoverinfo='skip', 
                                                  name=shared.list_of_pcate.get(category_index),
-                                                 colorbar=dict(title = shared.list_of_pcate.get(category_index), x = 1 + (category_index)*0.5), 
-                                                 colorscale=colorscale, zmin=40, zmax=100)
+                                                 colorbar=dict(
+                                                     title = shared.list_of_pcate.get(category_index),
+                                                     orientation = 'h',
+                                                     yanchor="top",
+                                                     #xanchor="right",
+                                                     len=0.75,
+                                                     #x = 0.4, #+ 0.25 * category_index,
+                                                     y = -0.2 - 0.2 * category_index
+                                                ), 
+                                                 colorscale=colorscale, 
+                                                 zmin=40, 
+                                                 zmax=100)
                 ))
             return heatmapfig
         

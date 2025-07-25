@@ -25,7 +25,7 @@ def build_sidebar_content():
             "data_selector", 
             "Select your data type", 
             choices=['Deterministic', 'Probabilistic'], 
-            selected='Deterministic'),
+            selected='Probabilistic'),
         
         # Url portal to documentation 
         ui.a('Take me to documentation \N{Page with Curl}', 
