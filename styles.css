@@ -8,9 +8,11 @@ body{
 
 h1{
     color: #000000;
-    margin-top: 0px; 
+    margin-top: 5px; 
     font-size: 36px;
-    margin-left: 0px;
+    margin-left: 5px;
+    margin-top: 18px;
+    margin-bottom: 20px;
 }
 
 h2{
@@ -29,21 +31,34 @@ h2{
     text-align: justify;
 }
 
-.header {
-    margin-top: 18px;
-    margin-bottom: 75px;
-    background-color: rgba(240, 248, 255, 0);
-}
-
 .header img {
     text-align: center;
     position: relative;
     float: left;
     height: 50px;
 }
-  
-.header h1 {
-    position: relative;
-    left: 10px;
+
+/* Ensure the card and plotly container fill available height */
+.plotly-center-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 850px;      /* Optional: minimum height for visibility */
+    overflow: hidden;       /* Prevent overflow */
 }
 
+.plotly-center-container > * { /* Ensure children fill the container */
+    width: 100% !important;
+    margin-top: 0 !important; 
+}
+
+.center-control-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;      /* Center horizontally */
+    justify-content: center;  /* Center vertically if you want */
+    width: 100%;
+    gap: 10px;                /* Optional: space between slider and text */
+}

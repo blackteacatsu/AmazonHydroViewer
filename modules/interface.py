@@ -9,7 +9,7 @@ def build_sidebar_content():
         # Buttons to select variable
         ui.input_radio_buttons(
             "var_selector", 
-            "Select your variable below", 
+            "Select variables below:", 
             choices=shared.list_of_variables, 
             selected='Rainf_tavg'),
 
@@ -24,7 +24,7 @@ def build_sidebar_content():
         ui.input_radio_buttons(
             "data_selector", 
             "Select your data type", 
-            choices=['Deterministic', 'Probabilistic'], 
+            choices=['Probabilistic'], # 'Deterministic' 
             selected='Probabilistic'),
         
         # Url portal to documentation 

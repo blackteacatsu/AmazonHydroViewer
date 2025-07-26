@@ -1,9 +1,8 @@
-faicons
 shiny
 shinywidgets
+faicons
 xarray
 plotly
-json
-urllib
 geopandas
 regionmask
+numpy

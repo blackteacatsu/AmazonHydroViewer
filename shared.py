@@ -6,7 +6,7 @@ list_of_variables = {
     'Qair_f_tavg' : 'Specific humidity',
     'Qs_tavg':'Surface runoff',
     'Evap_tavg':'Evapotranspiration',
-    'Tair_f_tavg':'Average air temperature',
+    'Tair_f_tavg':'Avg. air temperature',
     'SoilMoist_inst': 'Soil moisture',
     'SoilTemp_inst': 'Soil temperature',
     'Streamflow_tavg': 'Stream flow'
@@ -64,11 +64,11 @@ colorscales = [
 # get external style sheet
 css_file_path = Path(__file__).parent / "styles.css"
 
-github_data_repo = 'https://raw.githubusercontent.com/blackteacatsu/servir_dashboard_shiny/main/data'
+github_data_repo = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/main/'
 
-probabilistic_data_path = github_data_repo + '/get_ldas_probabilistics_output'
+probabilistic_data_path = github_data_repo + 'get_ldas_probabilistics_output/prob_2024_12_31_tercile_probability_max_'
 
-deterministic_data_path = github_data_repo + '/get_ldas_probabilistics_output'
+deterministic_data_path = github_data_repo + 'get_ldas_probabilistics_output'
 
 hydrobasins_lev05_url = 'https://raw.githubusercontent.com/blackteacatsu/spring_2024_envs_research_amazon_ldas/main/resources/hybas_sa_lev05_areaofstudy.geojson'
 

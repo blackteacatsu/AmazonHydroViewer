@@ -67,7 +67,8 @@ def buildregion(path_to_geojson):
 
 
     # Add a single trace for all polygons
-    heatmap=go.FigureWidget(go.Scatter(
+    heatmap=go.FigureWidget(
+        go.Scatter(
         x=polygon_x,
         y=polygon_y,
         mode='lines',
@@ -75,20 +76,14 @@ def buildregion(path_to_geojson):
         text=polygon_text,
         hoverinfo='text',
         hovertemplate='PFAF_ID: %{text}<extra></extra>'
-    ))
+        )
+    )
 
     heatmap.update_layout(
-        xaxis_title='Longitude',
-        yaxis_title='Latitude',
-        height = 450,
-        width = 600, 
+        xaxis_title='Longitude', yaxis_title='Latitude',
+        #height = 450, width = 600,
+        autosize=True,
         margin={'l': 0, 'r': 0, 't': 0, 'b': 0},
-        #legend=dict(
-            #orientation="h",
-            #yanchor="bottom",
-            #y=1.02,
-            #xanchor="right",
-            #x=1)
     )
 
     return heatmap
