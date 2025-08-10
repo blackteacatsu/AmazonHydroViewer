@@ -1,7 +1,6 @@
 import json
 import urllib.request
 import plotly.graph_objects as go
-import plotly.express as px
 import xarray as xr
 
 # Read gridded data files and find coordinates variable

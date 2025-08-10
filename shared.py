@@ -1,18 +1,16 @@
-from pathlib import Path
-
 # list of variables in the app
 list_of_variables = {
-    'Rainf_tavg' : 'Average precipitation', 
-    'Qair_f_tavg' : 'Specific humidity',
-    'Qs_tavg':'Surface runoff',
-    'Evap_tavg':'Evapotranspiration',
-    'Tair_f_tavg':'Avg. air temperature',
-    'SoilMoist_inst': 'Soil moisture',
-    'SoilTemp_inst': 'Soil temperature',
-    'Streamflow_tavg': 'Stream flow'
+    'Rainf_tavg' : 'average precipitation', 
+    'Qair_f_tavg' : 'specific humidity',
+    'Qs_tavg':'surface runoff',
+    'Evap_tavg':'evapotranspiration',
+    'Tair_f_tavg':'avg. air temperature',
+    'SoilMoist_inst': 'soil moisture',
+    'SoilTemp_inst': 'soil temperature',
+    #'Streamflow_tavg': 'stream flow'
 }
 
-## Global variables
+"""# Global variables
 surface_variable_short = [
     'Rainf_tavg', 
     'Qair_f_tavg',
@@ -21,8 +19,9 @@ surface_variable_short = [
     'Tair_f_tavg',
     'SoilMoist_inst', 
     'SoilTemp_inst'
-]
+]"""
 
+# list of surface variable units
 surface_variable_unit = {
     'Rainf_tavg':'mm/day', 
     'Qair_f_tavg':'g/kg', 
@@ -31,7 +30,7 @@ surface_variable_unit = {
     'Tair_f_tavg':'degree Celsius',
     'SoilMoist_inst':'m^3 m-3', 
     'SoilTemp_inst':'degree Celsius',
-    'Streamflow_tavg': ''
+    #'Streamflow_tavg': ''
 }
 
 # list of profile indices and corresponding meaning
@@ -44,7 +43,7 @@ list_of_profiles = {
 
 # list of prob data category
 list_of_pcate = {
-    0:'Below noraml',
+    0:'Below normal',
     1:'Near normal',
     2:'Above normal'
 }
@@ -52,7 +51,7 @@ list_of_pcate = {
 # List of Plotly colorscales (add more if needed)
 colorscales = [
     "Blues", 
-    'oranges', 
+    'Oranges', 
     "Reds"
 ]
 
@@ -62,19 +61,16 @@ colorscales = [
 """
 
 # get external style sheet
-css_file_path = Path(__file__).parent / "styles.css"
+github_data_repo = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
 
-github_data_repo = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/main/'
+probabilistic_data_path = github_data_repo + 'main/get_ldas_probabilistics_output/prob_2024_12_31_tercile_probability_max_'
 
-probabilistic_data_path = github_data_repo + 'get_ldas_probabilistics_output/prob_2024_12_31_tercile_probability_max_'
+deterministic_data_path = github_data_repo + 'main/get_ldas_probabilistics_output'
 
-deterministic_data_path = github_data_repo + 'get_ldas_probabilistics_output'
+raw_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_csv/zonal_stats_pfaf_'
+
 
 hydrobasins_lev05_url = 'https://raw.githubusercontent.com/blackteacatsu/spring_2024_envs_research_amazon_ldas/main/resources/hybas_sa_lev05_areaofstudy.geojson'
-
-surface_ensemble_members_path = Path(__file__).parent / 'data' / 'get_ldas_deterministic_output' / 'monthly_ldas_surfacemodel_2024_jul30.nc'
-
-routing_ensemble_members_path = Path(__file__).parent / 'data' / 'get_ldas_deterministic_output' / 'monthly_ldas_routing_2024_jul30.nc'
 
 
 web_app_title = 'Hydrometeorology of The Amazon Basin'

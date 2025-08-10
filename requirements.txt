@@ -1,0 +1,12 @@
+faicons
+shiny
+shinywidgets
+xarray
+plotly
+jsonlib-python3
+urllib3
+netcdf4
+geopandas
+regionmask
+websockets==10.4
+pandas

@@ -23,7 +23,7 @@ def build_sidebar_content():
         # Buttons to select data type
         ui.input_radio_buttons(
             "data_selector", 
-            "Select your data type", 
+            "Select forecast type:", 
             choices=['Probabilistic'], # 'Deterministic' 
             selected='Probabilistic'),
         
@@ -75,12 +75,12 @@ def info_modal():
             This interactive map provides access to estimates of monthly meteorological 
             and hydrological conditions in the Amazon basin, derived from output of 
             a Land Data Assimilation System. The original implementation is described in """,
-            ui.tags.a("Recalde et al. (2022).", href = "https://doi.org/10.1175/JHM-D-21-0081.1"),
+            ui.tags.a("Recalde et al. (2022).", href = "https://doi.org/10.1175/JHM-D-21-0081.1", target="_blank"), # open url in new tab1
 
             """ 
             The current, updated system is maintained by Dr. Prakrut Kansara, 
             with visualizations designed by Kris Su. Please direct questions to
-            """, ui.tags.a("Ben Zaitchik.", href = "zaitchik@jhu.edu"),
+            """, ui.tags.a("Ben Zaitchik.", href = "https://eps.jhu.edu/directory/benjamin-zaitchik/", target="_blank"), # open url in new tab2
             style="""
             text-align: justify;
             word-break:break-word;
@@ -94,5 +94,6 @@ def info_modal():
             size="l",
             easy_close=True,
             footer=ui.modal_button("Close"),
+            #never_hide=False,  # Prevent the modal from being closed by clicking outside
         )
     )

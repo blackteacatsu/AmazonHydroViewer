@@ -1,8 +1,0 @@
-shiny
-shinywidgets
-faicons
-xarray
-plotly
-geopandas
-regionmask
-numpy
