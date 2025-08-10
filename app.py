@@ -61,19 +61,22 @@ app_ui = ui.page_fluid(
                     ui.output_ui('time_index_slider'),
                     ui.output_text_verbatim("time_index"),
                     class_='center-control-content'),
-                ui.download_button('downloadData',  'Download'),
+                #ui.download_button('downloadData',  'Download'),
                 fill=True
             ),
 
             ui.card(
-                ui.card_header(ui.tags.h2('General forecast information')),
+                ui.card_header(ui.tags.h2('General forecast information \N{Public Address Loudspeaker}')),
                 ui.tags.p(
                     ui.tags.div('Ensemble forecasting - Instead of making a single forecast of the most ' \
                     'likely weather, a set (or ensemble) of forecasts  is  produced.  This  set  of ' \
                     'forecasts aims to give an indication of ' \
                     'the range of possible future states of ' \
                     'the atmosphere. ')
-                )
+                ),
+                interface.build_general_info(),
+                max_height='300px', full_screen=True
+
             )
         ),
     ), full_width=True)
@@ -83,6 +86,12 @@ def server(input, output, session):
 
     # Call Welcome message
     interface.info_modal()
+
+    # Download
+    #@output
+    #@render.download
+    #def downloadData():
+        #return 
 
     # Get the selected variable from the input
     def get_profile_key(var_selector):
@@ -271,14 +280,18 @@ def server(input, output, session):
 
             #x = sorted(summary['time'])
             #print(x)
-            print(shared.raw_data_path + polygon() + ".csv")
+            #print(shared.raw_data_path + polygon() + ".csv")
 
-            summary = pd.read_csv(
-                shared.raw_data_path + polygon() + ".csv"
-            )
-            print(summary)  # Debugging output
+            summary = pd.read_csv(shared.raw_data_path + polygon() + ".csv")
+
+            #print(summary)  # Debugging output
+
             for t in sorted(summary['time'].unique()):
-                data_for_t = summary.loc[summary['time'] == t, input.var_selector()]
+                if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']:
+                    data_for_t = summary.loc[summary['time'] == t, input.var_selector() + "_lvl_" + input.profile_selector()]
+                
+                else:
+                    data_for_t = summary.loc[summary['time'] == t, input.var_selector()]
 
                 ensemblebox.add_trace(
                     go.Box(

@@ -74,5 +74,3 @@ hydrobasins_lev05_url = 'https://raw.githubusercontent.com/blackteacatsu/spring_
 
 
 web_app_title = 'Hydrometeorology of The Amazon Basin'
-
-documentation_site_url = 'https://blackteacatsu.github.io/dokkuments/'

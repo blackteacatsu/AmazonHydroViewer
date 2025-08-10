@@ -29,10 +29,15 @@ def build_sidebar_content():
         
         # Url portal to documentation 
         ui.a('Take me to documentation \N{Page with Curl}', 
-             href = shared.documentation_site_url, 
+             href = "https://blackteacatsu.github.io/dokkuments/blog/welcome", 
              target='_blank', 
              class_="btn btn-primary"),
-        # 
+
+        # Url portal to GitHub data repository
+        ui.a('Take me to data \N{Page with Curl}', 
+             href = "https://github.com/Amazon-ARCHive/amazon_hydroviewer_backend/tree/main", 
+             target='_blank', 
+             class_="btn btn-primary"),
     )
 
 """
@@ -96,4 +101,37 @@ def info_modal():
             footer=ui.modal_button("Close"),
             #never_hide=False,  # Prevent the modal from being closed by clicking outside
         )
+    )
+
+def build_general_info():
+    mermaid = "" \
+    "```mermaid " \
+    "   flowchart TD   " \
+    "   ArlingtonCounty_polygon --Clip analysis tool--> VirginiaStateCensusBlock --> Base_layer```"
+
+    return ui.div(
+        ui.tags.h3("General Information"),
+        ui.tags.p(
+            "This web application provides access to estimates of monthly meteorological and hydrological conditions in the Amazon basin, derived from output of a Land Data Assimilation System. The original implementation is described in ",
+            ui.tags.a("Recalde et al. (2022).", href = "https://doi.org/10.1175/JHM-D-21-0081.1", target="_blank"),  # open url in new tab
+            ". The current, updated system is maintained by Dr. Prakrut Kansara, with visualizations designed by Kris Su. Please direct questions to ",
+            ui.tags.a("Ben Zaitchik.", href = "https://eps.jhu.edu/directory/benjamin-zaitchik/", target="_blank"),  # open url in new tab
+        ),
+        ui.HTML(
+            "<script type=module> import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'); </script> " \
+            "<pre class='mermaid'> " \
+            "```mermaid" \
+            "flowchart TD;" \
+            "ArlingtonCounty_polygon --Clip analysis tool--> VirginiaStateCensusBlock --> Base_layer" \
+            "```" \
+            "</pre>" \
+        ),
+
+        # Include Mermaid JS
+
+        style="""
+        text-align: justify;
+        word-break:break-word;
+        hyphens: auto;
+        """
     )
