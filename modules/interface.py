@@ -104,34 +104,47 @@ def info_modal():
     )
 
 def build_general_info():
-    mermaid = "" \
-    "```mermaid " \
-    "   flowchart TD   " \
-    "   ArlingtonCounty_polygon --Clip analysis tool--> VirginiaStateCensusBlock --> Base_layer```"
 
     return ui.div(
-        ui.tags.h3("General Information"),
         ui.tags.p(
-            "This web application provides access to estimates of monthly meteorological and hydrological conditions in the Amazon basin, derived from output of a Land Data Assimilation System. The original implementation is described in ",
-            ui.tags.a("Recalde et al. (2022).", href = "https://doi.org/10.1175/JHM-D-21-0081.1", target="_blank"),  # open url in new tab
-            ". The current, updated system is maintained by Dr. Prakrut Kansara, with visualizations designed by Kris Su. Please direct questions to ",
-            ui.tags.a("Ben Zaitchik.", href = "https://eps.jhu.edu/directory/benjamin-zaitchik/", target="_blank"),  # open url in new tab
-        ),
-        ui.HTML(
-            "<script type=module> import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'); </script> " \
-            "<pre class='mermaid'> " \
-            "```mermaid" \
-            "flowchart TD;" \
-            "ArlingtonCounty_polygon --Clip analysis tool--> VirginiaStateCensusBlock --> Base_layer" \
-            "```" \
-            "</pre>" \
-        ),
+                    ui.tags.div('Ensemble forecasting - Instead of making a single forecast of the most ' \
+                    'likely weather, a set (or ensemble) of forecasts  is  produced.  This  set  of ' \
+                    'forecasts aims to give an indication of ' \
+                    'the range of possible future states of ' \
+                    'the atmosphere. ')
+                ),
+        ui.tags.div( # Mermaid diagram
+            ui.tags.pre(
+            '''
+            ---
+            config:
+            look: handDrawn
+            theme: neutral
+            ---
+            flowchart LR
+                Hindcast(Hindcast Data)
+                Below(Below Normal)
+                Near(Near Normal)
+                Above(Above Normal)
+                category(Tercile category threshold values)
+                Forecast[(Latest initiated forecast)]
+                Result>"TERCILE CATEGORY PROBABILITY EXCEEDANCE"]
 
-        # Include Mermaid JS
+                Hindcast --Ranking 1 - 33.33 percentile--> Below
+                Hindcast --Ranking 33.33 - 66.67 percentile--> Near
+                Hindcast --Ranking 66.67 - 100 percentile--> Above
 
-        style="""
-        text-align: justify;
-        word-break:break-word;
-        hyphens: auto;
-        """
+                Below --> category
+                Near --> category
+                Above --> category
+
+                Forecast --> category
+
+                category --> Result
+
+            ''', class_='mermaid'
+            ),
+            ui.tags.script("import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';", type="module"),
+        )
+
     )

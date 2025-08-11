@@ -67,15 +67,8 @@ app_ui = ui.page_fluid(
 
             ui.card(
                 ui.card_header(ui.tags.h2('General forecast information \N{Public Address Loudspeaker}')),
-                ui.tags.p(
-                    ui.tags.div('Ensemble forecasting - Instead of making a single forecast of the most ' \
-                    'likely weather, a set (or ensemble) of forecasts  is  produced.  This  set  of ' \
-                    'forecasts aims to give an indication of ' \
-                    'the range of possible future states of ' \
-                    'the atmosphere. ')
-                ),
-                interface.build_general_info(),
-                max_height='300px', full_screen=True
+                interface.build_general_info(), # 
+                max_height='400px', full_screen=True
 
             )
         ),
