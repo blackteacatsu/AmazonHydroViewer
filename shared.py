@@ -69,6 +69,8 @@ deterministic_data_path = github_data_repo + 'main/get_ldas_probabilistics_outpu
 
 raw_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_csv/zonal_stats_pfaf_'
 
+climatology_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_climatology_csv/zonal_climatology_pfaf_'
+
 
 hydrobasins_lev05_url = 'https://raw.githubusercontent.com/blackteacatsu/spring_2024_envs_research_amazon_ldas/main/resources/hybas_sa_lev05_areaofstudy.geojson'
 

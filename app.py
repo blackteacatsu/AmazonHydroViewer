@@ -275,16 +275,18 @@ def server(input, output, session):
             #print(x)
             #print(shared.raw_data_path + polygon() + ".csv")
 
-            summary = pd.read_csv(shared.raw_data_path + polygon() + ".csv")
+            zonal_stats_tab = pd.read_csv(shared.raw_data_path + polygon() + ".csv")
+
+            zonal_climatology_tab = pd.read_csv(shared.climatology_data_path + polygon() + ".csv")
 
             #print(summary)  # Debugging output
 
-            for t in sorted(summary['time'].unique()):
-                if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']:
-                    data_for_t = summary.loc[summary['time'] == t, input.var_selector() + "_lvl_" + input.profile_selector()]
+            for t in sorted(zonal_stats_tab['time'].unique()):
+                if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']: # check if variable is soil temperature or moisture
+                    data_for_t = zonal_stats_tab.loc[zonal_stats_tab['time'] == t, input.var_selector() + "_lvl_" + input.profile_selector()]
                 
-                else:
-                    data_for_t = summary.loc[summary['time'] == t, input.var_selector()]
+                else: 
+                    data_for_t = zonal_stats_tab.loc[zonal_stats_tab['time'] == t, input.var_selector()]
 
                 ensemblebox.add_trace(
                     go.Box(
@@ -295,29 +297,21 @@ def server(input, output, session):
                     )
                 )
             
-            for t in sorted(summary['time'].unique()):
-                # Filter the summary DataFrame for the current time index
+            """ for months in sorted(zonal_climatology_tab['month'].unique()):
+                if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']: # check if variable is soil temperature or moisture
+                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == months, input.var_selector() + "_lvl_" + input.profile_selector()]
                 
+                else: 
+                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == months, input.var_selector()]
 
-                """
-                for category_index in sorted(summary['category'].unique()):  
-
-                    trace_data = summary[(summary['time'] == t) & (summary['category'] == category_index)]
-                    #print(trace_data) # Debugging output
-
-                    y_data = trace_data[input.var_selector()]
-
-                    #print(y_data)
-
-                    ensemblebox.add_trace(go.Box(
-                        y=y_data,
-                        x=[t]*len(y_data),
-                        name=f"Cat {category_index} | {t}",  # This creates the legend label
+                ensemblebox.add_trace(
+                    go.Box(
+                        y=climatology_for_t, x = [interface.format_date(months)] * len(data_for_t),
+                        name=interface.format_date(months), #f"Cat {input.var_selector()} | {summary['time']}",  # This creates the legend label
                         marker_color=None,  # Let Plotly pick auto color
                         boxmean=True,  # Optional: show mean as a line
-                        )
                     )
-                """
+                ) """
 
             # Update layout with title and axis labels
             ensemblebox.update_layout(title = f'Displaying ensemble spread of {shared.list_of_variables.get(input.var_selector(), input.var_selector())} in over region {polygon()} @profile level {input.profile_selector()}')

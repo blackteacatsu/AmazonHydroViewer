@@ -5,6 +5,7 @@ import pooch
 from modules.mapping import get_standard_coordinates
 from shared import deterministic_data_path, probabilistic_data_path
 import os
+import tempfile
 
 #def extract_river_network_with_attributes():
 ## waiting to be implemented
@@ -27,7 +28,9 @@ def retrieve_data_from_remote(data_type, var, profile):
         raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
     
     # Use pooch to download the file and open it as an xarray dataset
-    temp_file = pooch.retrieve(url, known_hash="sha256:b779879178af4f2e0d4d417ed08cac15498a053067e91cebea16278864596c84")
+    #temp_file = tempfile.NamedTemporaryFile(delete=False).name  # Create a temporary file to store the downloaded data
+    temp_file = pooch.retrieve(url, known_hash=None)
+
     with xr.open_dataset(temp_file, engine='netcdf4') as ds_forecast:
         ds_forecast.load() # Load the dataset into memory
         lon, lat, time = get_standard_coordinates(ds_forecast) # Retrieve standard coordinates
