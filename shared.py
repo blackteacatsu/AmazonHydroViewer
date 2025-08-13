@@ -1,12 +1,12 @@
 # list of variables in the app
 list_of_variables = {
-    'Rainf_tavg' : 'average precipitation', 
-    'Qair_f_tavg' : 'specific humidity',
-    'Qs_tavg':'surface runoff',
-    'Evap_tavg':'evapotranspiration',
-    'Tair_f_tavg':'avg. air temperature',
-    'SoilMoist_inst': 'soil moisture',
-    'SoilTemp_inst': 'soil temperature',
+    'Rainf_tavg' : 'Average Precipitation', 
+    'Qair_f_tavg' : 'Specific Humidity',
+    'Qs_tavg':'Surface Runoff',
+    'Evap_tavg':'Evapotranspiration',
+    'Tair_f_tavg':'Avg. Air Temperature',
+    'SoilMoist_inst': 'Soil Moisture',
+    'SoilTemp_inst': 'Soil Temperature',
     #'Streamflow_tavg': 'stream flow'
 }
 
@@ -22,7 +22,7 @@ surface_variable_short = [
 ]"""
 
 # list of surface variable units
-surface_variable_unit = {
+all_variable_units = {
     'Rainf_tavg':'mm/day', 
     'Qair_f_tavg':'g/kg', 
     'Qs_tavg':'mm/day', 

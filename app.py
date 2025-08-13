@@ -268,25 +268,27 @@ def server(input, output, session):
             ds_ensemble_members.close()"""
 
             #summary = filter_by_profile(summary, input.var_selector(), input.profile_selector())
-            
-            #print(summary)
-
             #x = sorted(summary['time'])
-            #print(x)
-            #print(shared.raw_data_path + polygon() + ".csv")
 
             zonal_stats_tab = pd.read_csv(shared.raw_data_path + polygon() + ".csv")
-
             zonal_climatology_tab = pd.read_csv(shared.climatology_data_path + polygon() + ".csv")
 
-            #print(summary)  # Debugging output
+            # Store climatology means for each time step
+            climatology_means = []
+            time_labels = []
 
             for t in sorted(zonal_stats_tab['time'].unique()):
+                
                 if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']: # check if variable is soil temperature or moisture
                     data_for_t = zonal_stats_tab.loc[zonal_stats_tab['time'] == t, input.var_selector() + "_lvl_" + input.profile_selector()]
-                
+                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == int(interface.format_date(t)[-2:]), input.var_selector() + "_lvl_" + input.profile_selector()]
+
                 else: 
                     data_for_t = zonal_stats_tab.loc[zonal_stats_tab['time'] == t, input.var_selector()]
+                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == int(interface.format_date(t)[-2:]), input.var_selector()]
+
+                #print(interface.format_date(t)[-2:])
+                print(climatology_for_t)
 
                 ensemblebox.add_trace(
                     go.Box(
@@ -296,25 +298,45 @@ def server(input, output, session):
                         boxmean=True,  # Optional: show mean as a line
                     )
                 )
+
+                # Save climatology mean for plotting later
+                climatology_means.append(climatology_for_t.mean())  # just mean value
+                time_labels.append(interface.format_date(t))
+
+            ensemblebox.add_trace(
+                go.Scatter(
+                    y=climatology_means, 
+                    x = time_labels, #[interface.format_date(t)] * len(data_for_t),
+                    mode="lines+markers",
+                    name=f"(Climatology Mean)", #of {interface.format_date(t)[-2:]}", #f"Cat {input.var_selector()} | {summary['time']}",  # This creates the legend label
+                    #marker_color=None,  # Let Plotly pick auto color
+                    #boxmean=False,  # Optional: show mean as a line
+                    line=dict(color="black", dash="dot"),
+                    marker=dict(color="black", size=6)
+                )
+            )
             
-            """ for months in sorted(zonal_climatology_tab['month'].unique()):
+            """for months in sorted(zonal_climatology_tab['month'].unique()):
                 if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']: # check if variable is soil temperature or moisture
-                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == months, input.var_selector() + "_lvl_" + input.profile_selector()]
+                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == interface.format_date(t)[-2:], input.var_selector() + "_lvl_" + input.profile_selector()]
                 
                 else: 
                     climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == months, input.var_selector()]
 
                 ensemblebox.add_trace(
                     go.Box(
-                        y=climatology_for_t, x = [interface.format_date(months)] * len(data_for_t),
+                        y=climatology_for_t, 
+                        x = [interface.format_date(t) for t in sorted(zonal_stats_tab['time'].unique())],
                         name=interface.format_date(months), #f"Cat {input.var_selector()} | {summary['time']}",  # This creates the legend label
                         marker_color=None,  # Let Plotly pick auto color
                         boxmean=True,  # Optional: show mean as a line
                     )
-                ) """
+                )"""
 
             # Update layout with title and axis labels
-            ensemblebox.update_layout(title = f'Displaying ensemble spread of {shared.list_of_variables.get(input.var_selector(), input.var_selector())} in over region {polygon()} @profile level {input.profile_selector()}')
+            ensemblebox.update_layout(title = f'Displaying ensemble spread of {shared.list_of_variables.get(input.var_selector(), input.var_selector())} in over region {polygon()} @profile level {input.profile_selector()}',
+                                      yaxis = dict(title = dict(text = f'{shared.list_of_variables.get(input.var_selector())} ({shared.all_variable_units.get(input.var_selector())})'))
+                                      )
 
         return ensemblebox
 
