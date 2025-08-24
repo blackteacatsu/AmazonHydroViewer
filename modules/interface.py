@@ -14,19 +14,19 @@ def build_sidebar_content():
             selected='Rainf_tavg'),
 
         # Buttons to select profile
-        ui.input_select(
-            "profile_selector", 
-            "Depth (Only applicable to soil temperature & moisture)", 
-            choices=shared.list_of_profiles, 
-            selected=0),
-
-        # Buttons to select data type
-        ui.input_radio_buttons(
-            "data_selector", 
-            "Select forecast type:", 
-            choices=['Probabilistic'], # 'Deterministic' 
-            selected='Probabilistic'),
+        ui.output_ui("profile_selector"),
+            #"Depth (Only applicable to soil temperature & moisture)", 
+            #choices=shared.list_of_profiles, 
+            #selected=0),
         
+        
+        # Buttons to select data type
+        #ui.input_radio_buttons(
+            #"data_selector", 
+            #"Select forecast type:", 
+            #choices=['Probabilistic'], # 'Deterministic' 
+            #selected='Probabilistic'),
+
         # Url portal to documentation 
         ui.a('Take me to documentation \N{Page with Curl}', 
              href = "https://blackteacatsu.github.io/dokkuments/blog/welcome", 

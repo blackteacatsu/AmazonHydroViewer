@@ -71,7 +71,7 @@ app_ui = ui.page_fluid(
                 max_height='400px', full_screen=True
 
             )
-        ),
+        )
     ), full_width=True)
 
 # --- Server logic ---#
@@ -94,7 +94,6 @@ def server(input, output, session):
         }.get(var_selector)
     
     # Filter the summary DataFrame by profile if applicable
-    # This function checks if the variable has a profile dimension and filters accordingly
     def filter_by_profile(summary, var_selector, profile_selector):
         profile_col = get_profile_key(var_selector)
         if profile_col:
@@ -102,7 +101,6 @@ def server(input, output, session):
         return summary
     
     # Select the profile level from the dataset based on the variable and profile selector
-    # This function retrieves the data for the selected variable and profile level
     def select_profile(data, var_selector, profile_selector):
         profile_dim = get_profile_key(var_selector)
         if profile_dim:
@@ -112,16 +110,24 @@ def server(input, output, session):
             ).fillna("")
         else:
             return data.isel(time=input.time_slider()).fillna("")
-        
+    @output
+    @render.ui
+    def profile_selector():
+        if input.var_selector() in ['SoilMoist_inst', 'SoilTemp_inst']:
+            return ui.input_select(
+                "profile_selector",
+                "Depth (Only applicable to soil temperature & moisture)", 
+                choices=shared.list_of_profiles, 
+                selected=0)
+
     # Create a time slider for the time variable
     @output
     @render.ui
     def time_index_slider(): # create a time slider
         try :
             _, _, _, time = calculation.retrieve_data_from_remote(
-                data_type=input.data_selector(),
-                var=input.var_selector(),
-                profile=input.profile_selector(),
+                #data_type=input.data_selector(),
+                var=input.var_selector()
             )
             if time is None:
                 return ui.div("No dataset loaded or time variable missing.")
@@ -146,9 +152,8 @@ def server(input, output, session):
     def time_index(): # display current time index
         try:
             _, _, _, time = calculation.retrieve_data_from_remote(
-                data_type=input.data_selector(),
-                var=input.var_selector(),
-                profile=input.profile_selector(),
+                #data_type=input.data_selector(),
+                var=input.var_selector()
             )
             if time is None:
                 return "No dataset loaded or time variable missing."
@@ -175,62 +180,60 @@ def server(input, output, session):
         if len(heatmapfig.data) > 1:
             heatmapfig.data = heatmapfig.data[:1]  # Keep only the first trace (polygon)
 
-        if input.data_selector() == 'Probabilistic':
-            # Retrieve the dataset based on the selected variable and profile
-            ds_forecast, lon, lat, _ = calculation.retrieve_data_from_remote(
-                data_type=input.data_selector(),
-                var=input.var_selector(),
-                profile=input.profile_selector()
-            )
+        # Retrieve the dataset based on the selected variable and profile
+        ds_forecast, lon, lat, _ = calculation.retrieve_data_from_remote(
+            #data_type=input.data_selector(),
+            var=input.var_selector(),
+        ) 
 
-            #print(ds_forecast)  # Debugging output
+        #print(ds_forecast)  # Debugging output
 
-            for category_index in sorted(ds_forecast['category'].values):
-                z_data = ds_forecast[input.var_selector()].isel(
-                    time = input.time_slider(), 
-                    category = category_index
-                ).where(lambda x: x != 0)
-                z_data = z_data.to_numpy()
-                z_data = np.where(np.isnan(z_data), None, z_data)
-                
-                colorscale = shared.colorscales[category_index % len(shared.colorscales)]
+        for category_index in sorted(ds_forecast['category'].values):
+            z_data = ds_forecast[input.var_selector()].isel(
+                time = input.time_slider(), 
+                category = category_index
+            ).where(lambda x: x != 0)
+            z_data = z_data.to_numpy()
+            z_data = np.where(np.isnan(z_data), None, z_data)
+            
+            colorscale = shared.colorscales[category_index % len(shared.colorscales)]
 
-                heatmapfig.add_trace(
-                    go.Heatmap(
-                        z=z_data, x=lon, 
-                        y=lat, hoverinfo='skip', 
-                        name=shared.list_of_pcate.get(category_index), 
-                        colorbar=dict(
-                            title = shared.list_of_pcate.get(category_index),
-                            orientation = 'h',
-                            yanchor="top", len=0.75,
-                            #x = 0.4, #+ 0.25 * category_index,
-                            y = -0.2 - 0.2 * category_index
-                        ), 
-                    colorscale=colorscale, zmin=40, zmax=100
-                    )
+            heatmapfig.add_trace(
+                go.Heatmap(
+                    z=z_data, x=lon, 
+                    y=lat, hoverinfo='skip', 
+                    name=shared.list_of_pcate.get(category_index), 
+                    colorbar=dict(
+                        title = shared.list_of_pcate.get(category_index),
+                        orientation = 'h',
+                        yanchor="top", len=0.75,
+                        #x = 0.4, #+ 0.25 * category_index,
+                        y = -0.2 - 0.2 * category_index
+                    ), 
+                colorscale=colorscale, zmin=40, zmax=100
                 )
-            return heatmapfig
+            )
+        return heatmapfig
         
         # If the dataset is not probabilistic, handle deterministic data
         ## Waiting to be implemented
-        else: 
-            selected_var_data = ds_ensemble_members[input.var_selector()].mean(dim="ensemble")
-            ds_ensemble_members.close()
+        #else: 
+            #selected_var_data = ds_ensemble_members[input.var_selector()].mean(dim="ensemble")
+            #ds_ensemble_members.close()
 
-            if input.var_selector() == 'Streamflow_tavg':
-                    selected_var_data = selected_var_data.where(selected_var_data <= 50, drop=True)
+            #if input.var_selector() == 'Streamflow_tavg':
+                    #selected_var_data = selected_var_data.where(selected_var_data <= 50, drop=True)
             
-            z_data = select_profile(selected_var_data, input.var_selector(), input.profile_selector())
+            #z_data = select_profile(selected_var_data, input.var_selector(), input.profile_selector())
 
-            return heatmapfig.add_trace(
-                go.Heatmap(
-                    z = z_data, 
-                    x=lon, 
-                    y=lat,
-                    hoverinfo='skip'
-                )
-            )
+            #return heatmapfig.add_trace(
+                #go.Heatmap(
+                    #z = z_data, 
+                    #x=lon, 
+                   #y=lat,
+                    #hoverinfo='skip'
+                #)
+            #)
 
     # Build the boxplot figure which will display the zonal statistics
     @render_plotly
@@ -288,7 +291,7 @@ def server(input, output, session):
                     climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == int(interface.format_date(t)[-2:]), input.var_selector()]
 
                 #print(interface.format_date(t)[-2:])
-                print(climatology_for_t)
+                # print(climatology_for_t) # Debug output
 
                 ensemblebox.add_trace(
                     go.Box(
@@ -316,23 +319,6 @@ def server(input, output, session):
                 )
             )
             
-            """for months in sorted(zonal_climatology_tab['month'].unique()):
-                if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']: # check if variable is soil temperature or moisture
-                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == interface.format_date(t)[-2:], input.var_selector() + "_lvl_" + input.profile_selector()]
-                
-                else: 
-                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == months, input.var_selector()]
-
-                ensemblebox.add_trace(
-                    go.Box(
-                        y=climatology_for_t, 
-                        x = [interface.format_date(t) for t in sorted(zonal_stats_tab['time'].unique())],
-                        name=interface.format_date(months), #f"Cat {input.var_selector()} | {summary['time']}",  # This creates the legend label
-                        marker_color=None,  # Let Plotly pick auto color
-                        boxmean=True,  # Optional: show mean as a line
-                    )
-                )"""
-
             # Update layout with title and axis labels
             ensemblebox.update_layout(title = f'Displaying ensemble spread of {shared.list_of_variables.get(input.var_selector(), input.var_selector())} in over region {polygon()} @profile level {input.profile_selector()}',
                                       yaxis = dict(title = dict(text = f'{shared.list_of_variables.get(input.var_selector())} ({shared.all_variable_units.get(input.var_selector())})'))

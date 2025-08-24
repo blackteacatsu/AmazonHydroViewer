@@ -3,7 +3,7 @@ import geopandas as gpd
 import xarray as xr
 import pooch
 from modules.mapping import get_standard_coordinates
-from shared import deterministic_data_path, probabilistic_data_path
+from shared import probabilistic_data_path
 import os
 import tempfile
 
@@ -11,18 +11,18 @@ import tempfile
 ## waiting to be implemented
 
 # This function retrieves data from a remote URL and returns the dataset along with its standard coordinates.
-def retrieve_data_from_remote(data_type, var, profile):
+def retrieve_data_from_remote(var, profile=0):
 
-    if data_type == "Probabilistic":
-        url = probabilistic_data_path + var + "_lvl_" + profile + ".nc"
-        # Check if the URL is valid and accessible
-        if not url.startswith("http://") and not url.startswith("https://"):
-            raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
+    #if data_type == "Probabilistic":
+    url = probabilistic_data_path + var + "_lvl_" + profile + ".nc"
+    # Check if the URL is valid and accessible
+    if not url.startswith("http://") and not url.startswith("https://"):
+        raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
 
-    else:
+    '''else:
         # For probabilistic or deterministic data, we retreive netcdf files
         url = deterministic_data_path + var + "_lvl_" + profile + ".nc"
-        # Check if the URL is valid and accessible
+        # Check if the URL is valid and accessible'''
 
     if not url.startswith("http://") and not url.startswith("https://"):
         raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")

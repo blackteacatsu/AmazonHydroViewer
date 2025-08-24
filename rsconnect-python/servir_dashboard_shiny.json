@@ -1,7 +1,7 @@
 {
     "https://api.shinyapps.io": {
         "server_url": "https://api.shinyapps.io",
-        "filename": "C:\\Users\\Kris\\Documents\\GitHub\\servir_dashboard_shiny",
+        "filename": "/Users/kris/GitHub/servir_dashboard_shiny",
         "app_url": "https://hydroclimate.shinyapps.io/amazonhydroviewer/",
         "app_id": 15124836,
         "app_guid": null,
