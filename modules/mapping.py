@@ -2,6 +2,12 @@ import json
 import urllib.request
 import plotly.graph_objects as go
 import xarray as xr
+import pooch
+from shared import probabilistic_data_path
+
+
+#def extract_river_network_with_attributes():
+## waiting to be implemented
 
 # Read gridded data files and find coordinates variable
 def get_standard_coordinates(dataset: xr.Dataset, lon_names=None, lat_names=None, time_names=None):
@@ -86,3 +92,33 @@ def buildregion(path_to_geojson):
     )
 
     return heatmap
+
+# This function retrieves data from a remote URL and returns the dataset along with its standard coordinates.
+def retrieve_data_from_remote(var, profile=0):
+    #print(type(profile))
+    #if data_type == "Probabilistic": # no longer determine data type for now
+    url = probabilistic_data_path + var + "_lvl_" + str(profile) + ".nc"
+    # Check if the URL is valid and accessible
+    if not url.startswith("http://") and not url.startswith("https://"):
+        raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
+
+    '''
+    else:
+        # For probabilistic or deterministic data, we retreive netcdf files
+        url = deterministic_data_path + var + "_lvl_" + profile + ".nc"
+        # Check if the URL is valid and accessible
+    '''
+
+    if not url.startswith("http://") and not url.startswith("https://"):
+        raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
+    
+    # Use pooch to download the file and open it as an xarray dataset
+    #temp_file = tempfile.NamedTemporaryFile(delete=False).name  # Create a temporary file to store the downloaded data
+    temp_file = pooch.retrieve(url, known_hash=None)
+
+    with xr.open_dataset(temp_file, engine='netcdf4') as ds_forecast:
+        ds_forecast.load() # Load the dataset into memory
+        lon, lat, time = get_standard_coordinates(ds_forecast) # Retrieve standard coordinates
+    
+    #os.remove(temp_file)  # Clean up the temporary file after loading
+    return ds_forecast, lon, lat, time

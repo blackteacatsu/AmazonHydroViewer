@@ -85,7 +85,7 @@ def server(input, output, session):
     #@render.download
     #def downloadData():
         #return 
-
+    """
     # Get the selected variable from the input
     def get_profile_key(var_selector):
         return {
@@ -110,13 +110,15 @@ def server(input, output, session):
             ).fillna("")
         else:
             return data.isel(time=input.time_slider()).fillna("")
+    """
+
     @output
     @render.ui
     def profile_selector():
         if input.var_selector() in ['SoilMoist_inst', 'SoilTemp_inst']:
             return ui.input_select(
-                "profile_selector",
-                "Depth (Only applicable to soil temperature & moisture)", 
+                "select_depth",
+                "Select depth lvl.", 
                 choices=shared.list_of_profiles, 
                 selected=0)
 
@@ -125,9 +127,10 @@ def server(input, output, session):
     @render.ui
     def time_index_slider(): # create a time slider
         try :
-            _, _, _, time = calculation.retrieve_data_from_remote(
+            _, _, _, time = mapping.retrieve_data_from_remote(
                 #data_type=input.data_selector(),
-                var=input.var_selector()
+                var=input.var_selector(),
+                profile=input.select_depth() if input.var_selector() in ['SoilMoist_inst', 'SoilTemp_inst'] else 0
             )
             if time is None:
                 return ui.div("No dataset loaded or time variable missing.")
@@ -151,9 +154,10 @@ def server(input, output, session):
     @render.text
     def time_index(): # display current time index
         try:
-            _, _, _, time = calculation.retrieve_data_from_remote(
-                #data_type=input.data_selector(),
-                var=input.var_selector()
+            _, _, _, time = mapping.retrieve_data_from_remote(
+                #data_type=input.data_selector(), # removed for now
+                var=input.var_selector(),
+                profile=input.select_depth() if input.var_selector() in ['SoilMoist_inst', 'SoilTemp_inst'] else 0
             )
             if time is None:
                 return "No dataset loaded or time variable missing."
@@ -175,15 +179,15 @@ def server(input, output, session):
 
     @reactive.effect
     def update_heatmap_figure():
-
         # Clear the previous heatmap trace (if it exists)
         if len(heatmapfig.data) > 1:
             heatmapfig.data = heatmapfig.data[:1]  # Keep only the first trace (polygon)
 
         # Retrieve the dataset based on the selected variable and profile
-        ds_forecast, lon, lat, _ = calculation.retrieve_data_from_remote(
-            #data_type=input.data_selector(),
+        ds_forecast, lon, lat, _ = mapping.retrieve_data_from_remote(
+            #data_type=input.data_selector(), # removed for now
             var=input.var_selector(),
+            profile=input.select_depth() if input.var_selector() in ['SoilMoist_inst', 'SoilTemp_inst'] else 0
         ) 
 
         #print(ds_forecast)  # Debugging output
@@ -215,26 +219,6 @@ def server(input, output, session):
             )
         return heatmapfig
         
-        # If the dataset is not probabilistic, handle deterministic data
-        ## Waiting to be implemented
-        #else: 
-            #selected_var_data = ds_ensemble_members[input.var_selector()].mean(dim="ensemble")
-            #ds_ensemble_members.close()
-
-            #if input.var_selector() == 'Streamflow_tavg':
-                    #selected_var_data = selected_var_data.where(selected_var_data <= 50, drop=True)
-            
-            #z_data = select_profile(selected_var_data, input.var_selector(), input.profile_selector())
-
-            #return heatmapfig.add_trace(
-                #go.Heatmap(
-                    #z = z_data, 
-                    #x=lon, 
-                   #y=lat,
-                    #hoverinfo='skip'
-                #)
-            #)
-
     # Build the boxplot figure which will display the zonal statistics
     @render_plotly
     def boxplot():
@@ -283,14 +267,14 @@ def server(input, output, session):
             for t in sorted(zonal_stats_tab['time'].unique()):
                 
                 if input.var_selector() in ['SoilTemp_inst', 'SoilMoist_inst']: # check if variable is soil temperature or moisture
-                    data_for_t = zonal_stats_tab.loc[zonal_stats_tab['time'] == t, input.var_selector() + "_lvl_" + input.profile_selector()]
-                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == int(interface.format_date(t)[-2:]), input.var_selector() + "_lvl_" + input.profile_selector()]
+                    data_for_t = zonal_stats_tab.loc[zonal_stats_tab['time'] == t, input.var_selector() + "_lvl_" + input.select_depth()]
+                    climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == int(interface.format_date(t)[-2:]), input.var_selector() + "_lvl_" + input.select_depth()]
 
                 else: 
                     data_for_t = zonal_stats_tab.loc[zonal_stats_tab['time'] == t, input.var_selector()]
                     climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab['month'] == int(interface.format_date(t)[-2:]), input.var_selector()]
 
-                #print(interface.format_date(t)[-2:])
+                # print(interface.format_date(t)[-2:])
                 # print(climatology_for_t) # Debug output
 
                 ensemblebox.add_trace(
@@ -315,12 +299,12 @@ def server(input, output, session):
                     #marker_color=None,  # Let Plotly pick auto color
                     #boxmean=False,  # Optional: show mean as a line
                     line=dict(color="black", dash="dot"),
-                    marker=dict(color="black", size=6)
+                    marker=dict(color="black", size=6) 
                 )
             )
             
             # Update layout with title and axis labels
-            ensemblebox.update_layout(title = f'Displaying ensemble spread of {shared.list_of_variables.get(input.var_selector(), input.var_selector())} in over region {polygon()} @profile level {input.profile_selector()}',
+            ensemblebox.update_layout(title = f'Displaying ensemble spread of {shared.list_of_variables.get(input.var_selector(), input.var_selector())} in over region {polygon()} @profile level {input.select_depth()}',
                                       yaxis = dict(title = dict(text = f'{shared.list_of_variables.get(input.var_selector())} ({shared.all_variable_units.get(input.var_selector())})'))
                                       )
 

@@ -1,28 +1,27 @@
-import regionmask
-import geopandas as gpd
 import xarray as xr
 import pooch
 from modules.mapping import get_standard_coordinates
 from shared import probabilistic_data_path
-import os
-import tempfile
+
 
 #def extract_river_network_with_attributes():
 ## waiting to be implemented
 
 # This function retrieves data from a remote URL and returns the dataset along with its standard coordinates.
-def retrieve_data_from_remote(var, profile=0):
-
-    #if data_type == "Probabilistic":
-    url = probabilistic_data_path + var + "_lvl_" + profile + ".nc"
+"""def retrieve_data_from_remote(var, profile=0):
+    #print(type(profile))
+    #if data_type == "Probabilistic": # no longer determine data type for now
+    url = probabilistic_data_path + var + "_lvl_" + str(profile) + ".nc"
     # Check if the URL is valid and accessible
     if not url.startswith("http://") and not url.startswith("https://"):
         raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
 
-    '''else:
+    '''
+    else:
         # For probabilistic or deterministic data, we retreive netcdf files
         url = deterministic_data_path + var + "_lvl_" + profile + ".nc"
-        # Check if the URL is valid and accessible'''
+        # Check if the URL is valid and accessible
+    '''
 
     if not url.startswith("http://") and not url.startswith("https://"):
         raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
@@ -36,10 +35,12 @@ def retrieve_data_from_remote(var, profile=0):
         lon, lat, time = get_standard_coordinates(ds_forecast) # Retrieve standard coordinates
     
     #os.remove(temp_file)  # Clean up the temporary file after loading
-    return ds_forecast, lon, lat, time
+    return ds_forecast, lon, lat, time"""
 
 
-"""# This function calculates zonal statistics for a specified PFAF_ID from a geodataframe and a gridded dataset.
+"""
+# In the latest version of this app, this function is moved to the backend of this application
+#  This function calculates zonal statistics for a specified PFAF_ID from a geodataframe and a gridded dataset.
 def get_zonal_statistics(geodataframe_path: str, gridded_ds: xr.Dataset, 
                          pfaf_id: int, variable: str, lon:xr.DataArray, lat:xr.DataArray):
     try:
