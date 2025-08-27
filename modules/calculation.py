@@ -1,7 +1,9 @@
-import xarray as xr
-import pooch
-from modules.mapping import get_standard_coordinates
-from shared import probabilistic_data_path
+#This module is current obselete and is not in use
+
+#import geopandas as gpd
+#import xarray as xr
+#from modules.mapping import get_standard_coordinates
+#from shared import probabilistic_data_path
 
 
 #def extract_river_network_with_attributes():
@@ -35,10 +37,8 @@ from shared import probabilistic_data_path
         lon, lat, time = get_standard_coordinates(ds_forecast) # Retrieve standard coordinates
     
     #os.remove(temp_file)  # Clean up the temporary file after loading
-    return ds_forecast, lon, lat, time"""
+    return ds_forecast, lon, lat, time
 
-
-"""
 # In the latest version of this app, this function is moved to the backend of this application
 #  This function calculates zonal statistics for a specified PFAF_ID from a geodataframe and a gridded dataset.
 def get_zonal_statistics(geodataframe_path: str, gridded_ds: xr.Dataset, 
@@ -80,6 +80,7 @@ def get_zonal_statistics(geodataframe_path: str, gridded_ds: xr.Dataset,
     except ValueError as e:
         print(f"Value error: {e}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")"""
+        print(f"An unexpected error occurred: {e}")
+"""
 
 

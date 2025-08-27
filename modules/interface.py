@@ -5,7 +5,7 @@ import shared
 Generate buttons in the sidebar 
 """
 def build_sidebar_content():
-    return ui.sidebar( 
+    return ui.sidebar(
         # Buttons to select variable
         ui.input_radio_buttons(
             "var_selector", 
@@ -14,19 +14,23 @@ def build_sidebar_content():
             selected='Rainf_tavg'),
 
         # Buttons to select profile
-        ui.output_ui("profile_selector"),
-            #"Depth (Only applicable to soil temperature & moisture)", 
-            #choices=shared.list_of_profiles, 
-            #selected=0),
-        
-        
+        ui.panel_conditional(
+            "input.var_selector == 'SoilMoist_inst' || input.var_selector == 'SoilTemp_inst'",
+            ui.input_select(
+                "depth_selector", 
+                "Depth (Only applicable to soil temperature & moisture)", 
+                choices=shared.list_of_profiles, 
+                selected=0
+            ),
+        ),
+
         # Buttons to select data type
         #ui.input_radio_buttons(
             #"data_selector", 
             #"Select forecast type:", 
             #choices=['Probabilistic'], # 'Deterministic' 
-            #selected='Probabilistic'),
-
+            #selected='Probabilistic')""",
+        
         # Url portal to documentation 
         ui.a('Take me to documentation \N{Page with Curl}', 
              href = "https://blackteacatsu.github.io/dokkuments/blog/welcome", 
@@ -37,7 +41,7 @@ def build_sidebar_content():
         ui.a('Take me to data \N{Page with Curl}', 
              href = "https://github.com/Amazon-ARCHive/amazon_hydroviewer_backend/tree/main", 
              target='_blank', 
-             class_="btn btn-primary"),
+             class_="btn btn-primary"), open='closed' # for debugging and test purposes
     )
 
 """

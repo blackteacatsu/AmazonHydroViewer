@@ -1,25 +1,14 @@
-# list of variables in the app (short & long names)
+# list of variables in the app
 list_of_variables = {
-    'Rainf_tavg' : 'Average Precipitation', 
+    'Rainf_tavg' : 'Avg. Precipitation', 
     'Qair_f_tavg' : 'Specific Humidity',
     'Qs_tavg':'Surface Runoff',
     'Evap_tavg':'Evapotranspiration',
-    'Tair_f_tavg':'Avg. Air Temperature',
+    'Tair_f_tavg':'Avg. Air Temp',
     'SoilMoist_inst': 'Soil Moisture',
     'SoilTemp_inst': 'Soil Temperature',
-    #'Streamflow_tavg': 'Stream Flow'
+    #'Streamflow_tavg': 'stream flow'
 }
-
-"""# Global variables
-surface_variable_short = [
-    'Rainf_tavg', 
-    'Qair_f_tavg',
-    'Qs_tavg',
-    'Evap_tavg',
-    'Tair_f_tavg',
-    'SoilMoist_inst', 
-    'SoilTemp_inst'
-]"""
 
 # list of surface variable units
 all_variable_units = {
@@ -58,13 +47,11 @@ colorscales = [
 # general path to remote backend data
 github_data_repo = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
 
-# general probabilistic data path  @remote location
 probabilistic_data_path = github_data_repo + 'main/get_ldas_probabilistics_output/prob_2024_12_31_tercile_probability_max_'
 
 # general regional averaged forecast data path  @remote location
 raw_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_csv/zonal_stats_pfaf_'
 
-# general regional climatology data path  @remote location
 climatology_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_climatology_csv/zonal_climatology_pfaf_'
 
 # path to geojson file @remote location for visualization
