@@ -84,7 +84,7 @@ app_ui = ui.page_fluid(
                 ),
                 interface.build_general_info(),  #
                 max_height="400px",
-                full_screen=True,
+                full_screen=False,
             ),
         ),
     ),
@@ -105,7 +105,7 @@ def server(input: Inputs, output: Outputs, session: Session):
     # return
     
     @reactive.calc
-    @reactive.event(input.var_selector)
+    #@reactive.event(input.var_selector, input.depth_selector())
     def tempds():
         ds_forecast, lon, lat, time = mapping.retrieve_data_from_remote(var=input.var_selector(), profile=input.depth_selector())
         return ds_forecast, lon, lat, time

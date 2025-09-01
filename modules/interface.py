@@ -125,12 +125,12 @@ def build_general_info():
             look: handDrawn
             theme: neutral
             ---
-            flowchart LR
+            flowchart TD
                 Hindcast(Hindcast Data)
                 Below(Below Normal)
                 Near(Near Normal)
                 Above(Above Normal)
-                category(Tercile category threshold values)
+                category(Compare latest forecast to threshold values)
                 Forecast[(Latest initiated forecast)]
                 Result>"TERCILE CATEGORY PROBABILITY EXCEEDANCE"]
 
