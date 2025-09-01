@@ -1,10 +1,10 @@
-from shiny import ui, render, App, reactive, Session
+from shiny import App, Inputs, Outputs, Session, reactive, ui, render
 from shinywidgets import output_widget, render_plotly, register_widget
 import xarray as xr
 import plotly.graph_objects as go
 import shared
 import pandas as pd
-import numpy as np
+import numpy as np  
 from modules import interface, mapping
 
 
@@ -93,7 +93,7 @@ app_ui = ui.page_fluid(
 
 
 # --- Server logic ---#
-def server(input, output, session):
+def server(input: Inputs, output: Outputs, session: Session):
 
     # Call Welcome message
     # interface.info_modal()
@@ -104,25 +104,18 @@ def server(input, output, session):
     # def downloadData():
     # return
     
-    #@reactive.Calc
-
-    @reactive.Effect
+    @reactive.calc
     @reactive.event(input.var_selector)
-    def _reset_depth_when_not_soil():
-        if input.var_selector() not in ["SoilTemp_inst", "SoilMoist_inst"]:
-            return ui.update_select("depth_selector", selected=0)  # reset silently
-            #print(input.depth_selector())
+    def tempds():
+        ds_forecast, lon, lat, time = mapping.retrieve_data_from_remote(var=input.var_selector(), profile=input.depth_selector())
+        return ds_forecast, lon, lat, time
 
     # Create a time slider for the time variable
     @output
     @render.ui
     def time_index_slider():  # create a time slider
         try:
-            _, _, _, time = mapping.retrieve_data_from_remote(
-                # data_type=input.data_selector(),
-                var=input.var_selector(),
-                profile=input.depth_selector(),
-            )
+            _, _, _, time = tempds()
             if time is None:
                 return ui.div("No dataset loaded or time variable missing.")
 
@@ -146,11 +139,7 @@ def server(input, output, session):
     @render.text
     def time_index():  # display current time index
         try:
-            _, _, _, time = mapping.retrieve_data_from_remote(
-                # data_type=input.data_selector(),
-                var=input.var_selector(),
-                profile=input.depth_selector(),
-            )
+            _, _, _, time = tempds()
             if time is None:
                 return "No dataset loaded or time variable missing."
             current_time = input.time_slider()
@@ -178,11 +167,7 @@ def server(input, output, session):
             heatmapfig.data = heatmapfig.data[:1]
 
         # Retrieve the dataset based on the selected variable and profile
-        ds_forecast, lon, lat, _ = mapping.retrieve_data_from_remote(
-            # data_type=input.data_selector(), # Currently only probabilistic is available
-            var=input.var_selector(),
-            profile=input.depth_selector(),
-        )
+        ds_forecast, lon, lat, _ = tempds()
 
         # print(ds_forecast)  # Debugging output
 
@@ -286,9 +271,10 @@ def server(input, output, session):
 
             # print(f'printing extracted climatology at time {t}\ {climatology_for_t}')
             # Save climatology for plotting later
-            climatology.append(float(climatology_for_t))
+            climatology.append(float(climatology_for_t.iloc[0]))
             time_labels.append(month)
 
+            # Add forecast data to box plot for this time step
             ensemblebox.add_trace(
                 go.Box(
                     y=data_for_t,

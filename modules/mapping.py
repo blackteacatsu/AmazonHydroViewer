@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import xarray as xr
 import pooch
 from shared import probabilistic_data_path
+#import os
 
 # Read gridded data files and find coordinates variable
 def get_standard_coordinates(dataset: xr.Dataset, lon_names=None, lat_names=None, time_names=None):
@@ -50,7 +51,8 @@ def retrieve_data_from_remote(var, profile):
         if not url.startswith("http://") and not url.startswith("https://"):
             raise ValueError(f"Invalid URL: {url}. Ensure it starts with 'http://' or 'https://'.")
     """
-    
+    if var not in ["SoilTemp_inst", "SoilMoist_inst"]: 
+        profile = "0"
     url = probabilistic_data_path + var + "_lvl_" + profile + ".nc"
     # Check if the URL is valid and accessible
 
@@ -60,7 +62,7 @@ def retrieve_data_from_remote(var, profile):
     # Use pooch to download the file and open it as an xarray dataset
     #temp_file = tempfile.NamedTemporaryFile(delete=False).name  # Create a temporary file to store the downloaded data
     temp_file = pooch.retrieve(url, known_hash=None)
-
+    
     with xr.open_dataset(temp_file, engine='netcdf4') as ds_forecast:
         ds_forecast.load() # Load the dataset into memory
         lon, lat, time = get_standard_coordinates(ds_forecast) # Retrieve standard coordinates

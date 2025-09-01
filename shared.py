@@ -4,7 +4,7 @@ list_of_variables = {
     'Qair_f_tavg' : 'Specific Humidity',
     'Qs_tavg':'Surface Runoff',
     'Evap_tavg':'Evapotranspiration',
-    'Tair_f_tavg':'Air Temp',
+    'Tair_f_tavg':'Air Temperature',
     'SoilMoist_inst': 'Soil Moisture',
     'SoilTemp_inst': 'Soil Temperature',
     #'Streamflow_tavg': 'stream flow'
