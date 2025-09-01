@@ -1,10 +1,10 @@
 # list of variables in the app
 list_of_variables = {
-    'Rainf_tavg' : 'Avg. Precipitation', 
+    'Rainf_tavg' : 'Precipitation', 
     'Qair_f_tavg' : 'Specific Humidity',
     'Qs_tavg':'Surface Runoff',
     'Evap_tavg':'Evapotranspiration',
-    'Tair_f_tavg':'Avg. Air Temp',
+    'Tair_f_tavg':'Air Temp',
     'SoilMoist_inst': 'Soil Moisture',
     'SoilTemp_inst': 'Soil Temperature',
     #'Streamflow_tavg': 'stream flow'

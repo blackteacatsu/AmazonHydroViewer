@@ -15,7 +15,7 @@ def build_sidebar_content():
 
         # Buttons to select profile
         ui.panel_conditional(
-            "input.var_selector == 'SoilMoist_inst' || input.var_selector == 'SoilTemp_inst'",
+            "input.var_selector == 'SoilMoist_inst' || input.var_selector == 'SoilTemp_inst'", 
             ui.input_select(
                 "depth_selector", 
                 "Depth (Only applicable to soil temperature & moisture)", 

@@ -103,12 +103,15 @@ def server(input, output, session):
     # @render.download
     # def downloadData():
     # return
+    
+    #@reactive.Calc
 
     @reactive.Effect
     @reactive.event(input.var_selector)
     def _reset_depth_when_not_soil():
         if input.var_selector() not in ["SoilTemp_inst", "SoilMoist_inst"]:
-            ui.update_select("depth_selector", selected=0)  # reset silently
+            return ui.update_select("depth_selector", selected=0)  # reset silently
+            #print(input.depth_selector())
 
     # Create a time slider for the time variable
     @output

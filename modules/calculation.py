@@ -1,4 +1,4 @@
-#This module is current obselete and is not in use
+#This is an obsolete module and will be removed in a future version.
 
 #import geopandas as gpd
 #import xarray as xr
