@@ -74,7 +74,8 @@ app_ui = ui.page_fluid(
                     class_="center-control-content",
                 ),
                 # ui.download_button('downloadData',  'Download'),
-                fill=True,
+                max_height="300px",
+                fill=False,
             ),
             ui.card(
                 ui.card_header(

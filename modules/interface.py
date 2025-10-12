@@ -122,8 +122,10 @@ def build_general_info():
             '''
             ---
             config:
-            look: handDrawn
-            theme: neutral
+                look: handDrawn
+                theme: neutral
+                themeVariables:
+                    fontSize: 22px
             ---
             flowchart TD
                 Hindcast(Hindcast Data)
