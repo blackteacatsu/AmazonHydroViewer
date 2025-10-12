@@ -1,3 +1,4 @@
 dump/test bench
 data/*
 __pycache__
+.vscode
