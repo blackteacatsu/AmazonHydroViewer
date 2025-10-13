@@ -33,7 +33,7 @@ def build_sidebar_content():
         
         # Url portal to documentation 
         ui.a('Take me to documentation \N{Page with Curl}', 
-             href = "https://blackteacatsu.github.io/dokkuments/blog/welcome", 
+             href = "https://blackteacatsu.github.io/dokkuments", 
              target='_blank', 
              class_="btn btn-primary"),
 
@@ -41,7 +41,7 @@ def build_sidebar_content():
         ui.a('Take me to data \N{Page with Curl}', 
              href = "https://github.com/Amazon-ARCHive/amazon_hydroviewer_backend/tree/main", 
              target='_blank', 
-             class_="btn btn-primary"), open='closed' # for debugging and test purposes
+             class_="btn btn-primary") # for debugging and test purposes
     )
 
 """
@@ -124,8 +124,6 @@ def build_general_info():
             config:
                 look: handDrawn
                 theme: neutral
-                themeVariables:
-                    fontSize: 22px
             ---
             flowchart TD
                 Hindcast(Hindcast Data)

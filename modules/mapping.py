@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import xarray as xr
 import pooch
 from shared import probabilistic_data_path
+from modules import plotly_theme
 #import os
 
 # Read gridded data files and find coordinates variable
@@ -108,11 +109,7 @@ def buildregion(path_to_geojson):
         )
     )
 
-    heatmap.update_layout(
-        xaxis_title='Longitude', yaxis_title='Latitude',
-        #height = 450, width = 600,
-        autosize=True,
-        margin={'l': 0, 'r': 0, 't': 0, 'b': 0},
-    )
+    # Apply Brutalist theme for map visualization
+    heatmap.update_layout(**plotly_theme.get_map_layout())
 
     return heatmap

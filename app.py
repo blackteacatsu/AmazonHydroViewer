@@ -4,8 +4,8 @@ import xarray as xr
 import plotly.graph_objects as go
 import shared
 import pandas as pd
-import numpy as np  
-from modules import interface, mapping
+import numpy as np
+from modules import interface, mapping, plotly_theme
 
 
 # --- Setup page ui ---#
@@ -28,7 +28,7 @@ page_header = ui.tags.div(
     ui.tags.div(
         ui.tags.a(
             ui.tags.img(
-                src="https://raw.githubusercontent.com/blackteacatsu/dokkuments/refs/heads/main/static/img/university_shield_blue.ico"
+                src="https://raw.githubusercontent.com/blackteacatsu/dokkuments/refs/heads/main/static/img/university.shield.blue.svg"
             ),
             href="https://pages.jh.edu/bzaitch1/",
         ),
@@ -46,8 +46,11 @@ app_ui = ui.page_fluid(
     ui.layout_sidebar(
         # Add contents to the side bar
         interface.build_sidebar_content(),
+
         # Defining the content outside the sidebar
+
         # ui.output_text_verbatim('selected_pfaf_id') # for debugging
+        
         ui.layout_columns(
             ui.card(
                 ui.card_header(ui.tags.h2(
@@ -74,7 +77,7 @@ app_ui = ui.page_fluid(
                     class_="center-control-content",
                 ),
                 # ui.download_button('downloadData',  'Download'),
-                max_height="300px",
+                max_height="350px",
                 fill=False,
             ),
             ui.card(
@@ -191,14 +194,12 @@ def server(input: Inputs, output: Outputs, session: Session):
                     y=lat,
                     hoverinfo="skip",
                     name=shared.list_of_pcate.get(category_index),
-                    colorbar=dict(
-                        title=shared.list_of_pcate.get(category_index),
-                        orientation="h",
-                        yanchor="top",
-                        len=0.75,
-                        # x = 0.4, #+ 0.25 * category_index,
-                        y=-0.2 - 0.2 * category_index,
-                    ),
+                    colorbar={
+                        **plotly_theme.get_colorbar_style(
+                            shared.list_of_pcate.get(category_index)
+                        ),
+                        'y': -0.2 - 0.2 * category_index,
+                    },
                     colorscale=colorscale,
                     zmin=40,
                     zmax=100,
@@ -211,21 +212,16 @@ def server(input: Inputs, output: Outputs, session: Session):
     def boxplot():
         ensemblebox = go.Figure()
 
-        # Initially display an empty figure
+        # Initially display an empty figure with Brutalist styling
         if polygon() == "Waiting input":
             ensemblebox.update_layout(
-                # title='Click on polygon to compute zonal average/maximum',
-                annotations=[
-                    dict(
-                        text="No data selected, try clicking on a polygon",
-                        xref="paper",
-                        yref="paper",
-                        x=0.5,
-                        y=0.5,
-                        showarrow=False,
-                        font=dict(size=20, color="black"),
-                    )
-                ],
+                **plotly_theme.get_brutalist_layout(
+                    annotations=[
+                        plotly_theme.get_empty_state_annotation(
+                            "NO DATA SELECTED<br>CLICK ON A POLYGON TO VIEW STATISTICS"
+                        )
+                    ]
+                )
             )
             return ensemblebox
 
@@ -237,18 +233,14 @@ def server(input: Inputs, output: Outputs, session: Session):
             )
         except Exception as e:
             ensemblebox.update_layout(
-                annotations=[
-                    dict(
-                        text=f"Failed to load data; {e}",
-                        xref="paper",
-                        yref="paper",
-                        x=0.5,
-                        y=0.5,
-                        showarrow=False,
-                        font=dict(size=14),
-                    )
-                ],
-                height=420,
+                **plotly_theme.get_brutalist_layout(
+                    annotations=[
+                        plotly_theme.get_empty_state_annotation(
+                            f"ERROR LOADING DATA<br>{str(e)}"
+                        )
+                    ],
+                    height=420,
+                )
             )
             return ensemblebox
         var = input.var_selector()
@@ -303,23 +295,24 @@ def server(input: Inputs, output: Outputs, session: Session):
             )
         )
 
-        # Update layout with title and axis labels
+        # Apply Brutalist theme with custom title and axis labels
+        var_name = shared.list_of_variables.get(input.var_selector()).upper()
+        var_unit = shared.all_variable_units.get(input.var_selector())
+        depth_label = shared.list_of_profiles.get(int(input.depth_selector()))
+
         ensemblebox.update_layout(
-            title=f"Displaying ensemble spread of {shared.list_of_variables.get(input.var_selector())} in region {polygon()} @depth {shared.list_of_profiles.get(int(input.depth_selector()))}",
-            yaxis=dict(
-                title=dict(
-                    text=f"{shared.list_of_variables.get(input.var_selector())} ({shared.all_variable_units.get(input.var_selector())})"
-                )
-            ),
-            legend=dict(
-                orientation="h",
-                x=0.5,
-                xanchor="center",  # center horizontally
-                y=-0.1,
-                yanchor="top",  # place below the plot area
-                # title_text=""            # optional: hide legend title if any
-            ),
-            # margin=dict(t=20, r=20, b=70, l=20)  # extra bottom space so it doesn't clip
+            **plotly_theme.get_brutalist_layout(
+                title={
+                    'text': f"ENSEMBLE SPREAD: {var_name} | REGION {polygon()} | DEPTH {depth_label}",
+                },
+                xaxis={
+                    'title': {'text': 'TIME PERIOD'},
+                    'showgrid': False,
+                },
+                yaxis={
+                    'title': {'text': f"{var_name} ({var_unit})"},
+                },
+            )
         )
 
         return ensemblebox
