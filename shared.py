@@ -39,9 +39,16 @@ list_of_pcate = {
 
 # List of Plotly colorscales (add more if needed)
 colorscales = [
-    "Blues", 
-    'Oranges', 
-    "Reds"
+    "Reds",      # Below normal
+    'Greys',      # Near normal
+    "Blues"        # Above normal
+]
+
+# Inverted colorscales for temperature variables
+colorscales_temp = [
+    "Blues",       # Below normal (inverted)
+    'Greys',      # Near normal
+    "Reds"       # Above normal (inverted)
 ]
 
 # general path to remote backend data
