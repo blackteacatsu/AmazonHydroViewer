@@ -155,7 +155,7 @@ colorscales_temp = [
 # general path to remote backend data
 github_data_repo = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
 
-probabilistic_data_path = github_data_repo + 'main/get_ldas_probabilistics_output/prob_2024_12_31_tercile_probability_max_'
+probabilistic_data_path = github_data_repo + 'main/get_ldas_probabilistic_output/prob_2024_12_31_tercile_probability_max_'
 
 # general regional averaged forecast data path  @remote location
 raw_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_csv/zonal_stats_pfaf_'
