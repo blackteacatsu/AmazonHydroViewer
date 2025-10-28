@@ -4,6 +4,7 @@ This module provides consistent styling across all visualizations.
 """
 
 import plotly.graph_objects as go
+import plotly.express as px
 
 
 # Color scheme - Brutalist monochrome
@@ -271,3 +272,63 @@ def _deep_merge(base_dict, update_dict):
             result[key] = value
 
     return result
+
+
+# def create_discrete_colorscale(colorscale_name, n_bins=6):
+#     """
+#     Create a discrete colorscale from a continuous Plotly colorscale.
+
+#     This function samples colors from a continuous colorscale and creates
+#     distinct bins with hard boundaries between colors, resulting in a
+#     stepped appearance rather than smooth gradients.
+
+#     Parameters:
+#         colorscale_name (str): Name of Plotly colorscale (e.g., 'Blues', 'Reds', 'Greys')
+#         n_bins (int): Number of discrete color bins (default: 6)
+
+#     Returns:
+#         list: Discrete colorscale as list of [position, color] pairs
+
+#     Example:
+#         >>> discrete_blues = create_discrete_colorscale('Blues', n_bins=5)
+#         >>> # Returns 5 distinct blue shades with hard boundaries
+#     """
+#     # Get the continuous colorscale from Plotly
+#     try:
+#         # Get colors from the named colorscale
+#         colors = px.colors.sample_colorscale(
+#             colorscale_name,
+#             n_bins,
+#             low=0.0,
+#             high=1.0
+#         )
+#     except:
+#         # Fallback if colorscale name not found
+#         colors = px.colors.sample_colorscale(
+#             'Viridis',
+#             n_bins,
+#             low=0.0,
+#             high=1.0
+#         )
+
+#     # Create discrete boundaries
+#     # Each color gets a range, with hard transitions between bins
+#     discrete_scale = []
+
+#     for i in range(n_bins):
+#         # Calculate the position for this bin
+#         pos_start = i / n_bins
+#         pos_end = (i + 1) / n_bins
+
+#         # Add the color at both start and end of the bin (creates hard boundary)
+#         if i == 0:
+#             discrete_scale.append([pos_start, colors[i]])
+#         else:
+#             # Add a tiny gap to create hard boundary
+#             discrete_scale.append([pos_start - 0.0001, colors[i-1]])
+#             discrete_scale.append([pos_start, colors[i]])
+
+#         if i == n_bins - 1:
+#             discrete_scale.append([pos_end, colors[i]])
+
+#     return discrete_scale

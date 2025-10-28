@@ -184,13 +184,11 @@ def server(input: Inputs, output: Outputs, session: Session):
             z_data = z_data.to_numpy()
             z_data = np.where(np.isnan(z_data), None, z_data)
 
-            # Use inverted colorscale for temperature variables
+            # Use pre-defined discrete colorscales for prob anomaly
             if input.var_selector() in ['Tair_f_tavg', 'SoilTemp_inst']:
-                colorscale = shared.colorscales_temp[category_index % len(
-                    shared.colorscales_temp)]
+                colorscale = shared.colorscales_discrete_temp[category_index]
             else:
-                colorscale = shared.colorscales[category_index % len(
-                    shared.colorscales)]
+                colorscale = shared.colorscales_discrete[category_index]
 
             heatmapfig.add_trace(
                 go.Heatmap(
@@ -204,6 +202,9 @@ def server(input: Inputs, output: Outputs, session: Session):
                             shared.list_of_pcate.get(category_index)
                         ),
                         'y': -0.2 - 0.2 * category_index,
+                        'tickmode': 'array',
+                        'tickvals': [40, 50, 60, 70, 80, 90, 100],
+                        'ticktext': ['40', '50', '60', '70', '80', '90', '100'],
                     },
                     colorscale=colorscale,
                     zmin=40,
@@ -257,13 +258,12 @@ def server(input: Inputs, output: Outputs, session: Session):
         # print(zonal_climatology_tab) # Debugging check
 
         for t in sorted(zonal_stats_tab["time"].unique()):
-            # print(var_col)
+            # print(var_col) # Debugging line
             month = interface.format_date(t)
             data_for_t = zonal_stats_tab.loc[zonal_stats_tab["time"]== t, var_col]
-
             climatology_for_t = zonal_climatology_tab.loc[zonal_climatology_tab["month"] == int(month[-2:]), var_col] 
+            # print(f'printing extracted climatology at time {t}\ {climatology_for_t}') # Debugging line
 
-            # print(f'printing extracted climatology at time {t}\ {climatology_for_t}')
             # Save climatology for plotting later
             climatology.append(float(climatology_for_t.iloc[0]))
             time_labels.append(month)
@@ -272,7 +272,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             ensemblebox.add_trace(
                 go.Box(
                     y=data_for_t,
-                    x= [month] * len(data_for_t), #[interface.format_date(t)] * len(data_for_t),
+                    x= [month] * len(data_for_t),
                     name=month,  # This creates the legend label
                     marker_color=None,  # Let Plotly pick auto color
                     boxpoints=False,  # Turn off individual points

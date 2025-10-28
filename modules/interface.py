@@ -32,14 +32,20 @@ def build_sidebar_content():
             #selected='Probabilistic')""",
         
         # Url portal to documentation 
-        ui.a('Take me to documentation \N{Page with Curl}', 
+        ui.a('To docs pages \N{Page with Curl}', 
              href = "https://blackteacatsu.github.io/dokkuments", 
              target='_blank', 
              class_="btn btn-primary"),
 
         # Url portal to GitHub data repository
-        ui.a('Take me to data \N{Page with Curl}', 
+        ui.a('To data repository\N{Page with Curl}', 
              href = "https://github.com/Amazon-ARCHive/amazon_hydroviewer_backend/tree/main", 
+             target='_blank', 
+             class_="btn btn-primary"), # for debugging and test purposes
+        
+        # Url portal to source code
+        ui.a('To source code \N{Rocket}', 
+             href = "https://github.com/blackteacatsu/AmazonHydroViewer", 
              target='_blank', 
              class_="btn btn-primary") # for debugging and test purposes
     )
