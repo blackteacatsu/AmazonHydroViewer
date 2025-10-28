@@ -219,4 +219,4 @@ If you use this tool in your research, please cite:
 
 ---
 
-**Made with ❤️ for the Amazon Basin research community**
+**Made with ❤️ on 🌎**
