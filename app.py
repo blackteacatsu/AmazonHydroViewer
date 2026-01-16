@@ -1,12 +1,12 @@
 from shiny import App, Inputs, Outputs, Session, reactive, ui, render
-from shinywidgets import output_widget, render_plotly, register_widget
+from shinywidgets import output_widget, render_plotly, register_widget, render_widget
 import xarray as xr
 import plotly.graph_objects as go
 import shared
 import pandas as pd
 import numpy as np
-from modules import interface, mapping, plotly_theme
-
+from modules import interface, mapping, plotly_theme, leaflet_map, tile_server_pyramid
+import subprocess
 
 # --- Setup page ui ---#
 
@@ -32,8 +32,6 @@ page_header = ui.tags.div(
             ),
             href="https://pages.jh.edu/bzaitch1/",
         ),
-        # id = 'logo-top',
-        # class_='navigation-logo'
     ),
     ui.tags.h1(shared.web_app_title),
     class_="header",
@@ -47,9 +45,8 @@ app_ui = ui.page_fluid(
         # Add contents to the side bar
         interface.build_sidebar_content(),
 
-        # Defining the content outside the sidebar
-
-        # ui.output_text_verbatim('selected_pfaf_id') # for debugging
+        # Defining the content outside the sidebar [for debugging]
+        # ui.output_text_verbatim('selected_pfaf_id')
         
         ui.layout_columns(
             ui.card(
@@ -61,7 +58,7 @@ app_ui = ui.page_fluid(
             ui.card(
                 ui.card_header(
                     ui.tags.h2(
-                        "Click on polygon to see zonal statistics \N{MOUSE}")
+                        "Zonal statistics \N{MOUSE}")
                 ),
                 output_widget("boxplot"),
                 full_screen=True,
@@ -76,7 +73,6 @@ app_ui = ui.page_fluid(
                     ui.output_text_verbatim("time_index"),
                     class_="center-control-content",
                 ),
-                # ui.download_button('downloadData',  'Download'),
                 max_height="350px",
                 fill=False,
             ),
@@ -98,28 +94,44 @@ app_ui = ui.page_fluid(
 
 # --- Server logic ---#
 def server(input: Inputs, output: Outputs, session: Session):
-
-    # Call Welcome message
+    # Call Welcome message uncomment to show at start-up
     # interface.info_modal()
 
-    # Download
-    # @output
-    # @render.download
-    # def downloadData():
-    # return
-    
-    @reactive.calc
-    #@reactive.event(input.var_selector, input.depth_selector())
-    def tempds():
-        ds_forecast, lon, lat, time = mapping.retrieve_data_from_remote(var=input.var_selector(), profile=input.depth_selector())
-        return ds_forecast, lon, lat, time
+    # Build the heatmap figure & register the heatmap figure as a widget
+    heatmapfig, polygon_layer = leaflet_map.create_hydrobasin_map()
+    register_widget("heatmap", heatmapfig)
+    #current_data_layer = reactive.Value(None)
 
-    # Create a time slider for the time variable
+    # Handle click events on the heatmap polygon
+    #polygon = interface.on_polygon_click(heatmapfig.data[0])
+    polygon = reactive.Value("Waiting input")
+    def on_polygon_clicked(pfaf_id):
+        polygon.set(str(pfaf_id))
+        print(f"Polygon clicked: {pfaf_id}")
+    
+    leaflet_map.polygon_click_handler(polygon_layer, on_polygon_clicked)
+
+    # Get time index 
+    @reactive.calc
+    def get_time_steps():
+        """Get time steps from any variable"""
+        try:
+            # Just need time info, use any variable
+            _, _, _, time = mapping.retrieve_data_from_remote(
+                var=input.var_selector(),
+                profile=input.depth_selector()
+            )
+            print(time)
+            return time
+        except:
+            return None
+
+    # Create a time slider to choose time-dimension
     @output
     @render.ui
     def time_index_slider():  # create a time slider
         try:
-            _, _, _, time = tempds()
+            time = get_time_steps()
             if time is None:
                 return ui.div("No dataset loaded or time variable missing.")
 
@@ -137,81 +149,65 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         except Exception as e:
             return ui.div("No dataset loaded or time variable missing.")
-
-    # Display the current time index
-    @output
-    @render.text
-    def time_index():  # display current time index
+    
+    #Display the current time index
+    def get_time_steps():
         try:
-            _, _, _, time = tempds()
+            time = get_time_steps()
             if time is None:
                 return "No dataset loaded or time variable missing."
             current_time = input.time_slider()
             if current_time < 0 or current_time >= len(time):
                 return "Invalid time index selected."
 
-            return f"Currently at {interface.format_date(time[input.time_slider()].values)}"
+            return f"Currently at {interface.format_date(time[input.time_slider()].values)}" 
         except Exception:
             return f"No dataset loaded or time variable missing."
-
-    # Build the heatmap figure
-    heatmapfig = mapping.buildregion(shared.hydrobasins_lev05_url)
-    # Register the heatmap figure as a widget
-    register_widget("heatmap", heatmapfig)
-
-    # Handle click events on the heatmap polygon
-    polygon = interface.on_polygon_click(heatmapfig.data[0])
-
+    
     @reactive.effect
     def update_heatmap_figure():
+        """Update tile layer given var, profile and time"""
+        variable = input.var_selector()
+        #print(variable)
+        time_idx = input.time_slider()
+        #print(time_idx)
+        profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
+        #print(profile)
+        category = int(input.forecast_category_selector())
+        #print(category)
+        #heatmapfig.remove_layer(initial_data_layer)
 
-        # Clear the previous heatmap trace (if it exists)
-        if len(heatmapfig.data) > 1:
-            # Keep only the first trace (polygon)
-            heatmapfig.data = heatmapfig.data[:1]
+        # Determine colormap based on variable
+        if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
+            colormaps = ['Blues', 'Greys', 'Reds']  # Inverted for temperature
+        else:
+            colormaps = ['Reds', 'Greys', 'Blues']  # Standard
 
-        # Retrieve the dataset based on the selected variable and profile
-        ds_forecast, lon, lat, _ = tempds()
-
-        # print(ds_forecast)  # Debugging output
-
-        for category_index in sorted(ds_forecast["category"].values):
-            z_data = (
-                ds_forecast[input.var_selector()]
-                .isel(time=input.time_slider(), category=category_index)
-                .where(lambda x: x != 0)
-            )
-            z_data = z_data.to_numpy()
-            z_data = np.where(np.isnan(z_data), None, z_data)
-
-            # Use pre-defined discrete colorscales for prob anomaly
-            if input.var_selector() in ['Tair_f_tavg', 'SoilTemp_inst']:
-                colorscale = shared.colorscales_discrete_temp[category_index]
-            else:
-                colorscale = shared.colorscales_discrete[category_index]
-
-            heatmapfig.add_trace(
-                go.Heatmap(
-                    z=z_data,
-                    x=lon,
-                    y=lat,
-                    hoverinfo="skip",
-                    name=shared.list_of_pcate.get(category_index),
-                    colorbar={
-                        **plotly_theme.get_colorbar_style(
-                            shared.list_of_pcate.get(category_index)
-                        ),
-                        'y': -0.2 - 0.2 * category_index,
-                        'tickmode': 'array',
-                        'tickvals': [40, 50, 60, 70, 80, 90, 100],
-                        'ticktext': ['40', '50', '60', '70', '80', '90', '100'],
-                    },
-                    colorscale=colorscale,
-                    zmin=40,
-                    zmax=100,
-                )
-            )
+        # Update the layer
+        forecast_layer = leaflet_map.update_data_layer(
+            heatmapfig,
+            #initial_data_layer,
+            variable,
+            time_idx,
+            category,
+            profile,
+            colormap=colormaps[category],
+        )
+        heatmapfig.add_layer(forecast_layer)
         return heatmapfig
+        
+        # Update info box
+        # var_name = shared.list_of_variables.get(variable)
+        # category_name = shared.list_of_pcate.get(category)
+        # time = get_time_steps()
+        # time_str = interface.format_date(time[time_idx].values) if time is not None else "?"
+        
+        # info_html.value = (
+        #     f"<b>{var_name}</b><br>"
+        #     f"Time: {time_str}<br>"
+        #     f"Category: {category_name}"
+        # )
+        
 
     # Build the boxplot figure which will display the zonal statistics
     @render_plotly
@@ -318,4 +314,26 @@ def server(input: Inputs, output: Outputs, session: Session):
         return ensemblebox
 
 
+def start_tile_server():
+    global _TILE_PROC
+    if _TILE_PROC is not None and _TILE_PROC.poll() is None:
+        return  # already running
+
+    tile_path = os.path.join(os.path.dirname(__file__), "tile_server.py")
+
+    # Use the SAME python that's running Shiny (base)
+    _TILE_PROC = subprocess.Popen(
+        [sys.executable, tile_path],
+        stdout=subprocess.PIPE,   # or None if you want it in console
+        stderr=subprocess.STDOUT,
+        cwd=os.path.dirname(__file__),
+    )
+
+def stop_tile_server():
+    global _TILE_PROC
+    if _TILE_PROC is not None and _TILE_PROC.poll() is None:
+        _TILE_PROC.terminate()
+
 app = App(app_ui, server)
+
+

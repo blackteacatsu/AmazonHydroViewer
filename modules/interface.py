@@ -7,11 +7,11 @@ Generate buttons in the sidebar
 def build_sidebar_content():
     return ui.sidebar(
         # Buttons to select variable
-        ui.input_radio_buttons(
+        ui.input_selectize(
             "var_selector", 
             "Select variables below:", 
             choices=shared.list_of_variables, 
-            selected='Rainf_tavg'),
+            selected=None),
 
         # Buttons to select profile
         ui.panel_conditional(
@@ -25,11 +25,11 @@ def build_sidebar_content():
         ),
 
         # Buttons to select data type
-        #ui.input_radio_buttons(
-            #"data_selector", 
-            #"Select forecast type:", 
-            #choices=['Probabilistic'], # 'Deterministic' 
-            #selected='Probabilistic')""",
+        ui.input_selectize(
+            "forecast_category_selector", 
+            "Select Category:", 
+            choices=shared.list_of_pcate, # 'Deterministic' 
+            selected=0),
         
         # Url portal to documentation 
         ui.a('To docs pages \N{Page with Curl}', 
@@ -47,7 +47,9 @@ def build_sidebar_content():
         ui.a('To source code \N{Rocket}', 
              href = "https://github.com/blackteacatsu/AmazonHydroViewer", 
              target='_blank', 
-             class_="btn btn-primary") # for debugging and test purposes
+             class_="btn btn-primary"), # for debugging and test purposes
+        
+        open='closed'
     )
 
 """

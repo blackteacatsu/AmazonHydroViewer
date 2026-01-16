@@ -1,4 +1,4 @@
-dump/test bench
+testbench/*
 data/*
 __pycache__
 .vscode

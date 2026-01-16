@@ -10,3 +10,5 @@ geopandas
 regionmask
 websockets==10.4
 pandas
+ipyleaflet>=0.18.0
+ipywidgets>=8.1.0

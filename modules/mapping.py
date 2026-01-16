@@ -45,7 +45,6 @@ def get_standard_coordinates(dataset: xr.Dataset, lon_names=None, lat_names=None
 
 # This function retrieves data from a remote URL and returns the dataset along with its standard coordinates.
 def retrieve_data_from_remote(var, profile):
-
     """if data_type == "Probabilistic":
     url = probabilistic_data_path + var + "_lvl_" + profile + ".nc"
         # Check if the URL is valid and accessible
