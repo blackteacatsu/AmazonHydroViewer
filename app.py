@@ -4,7 +4,7 @@ import xarray as xr
 import plotly.graph_objects as go
 import shared
 import pandas as pd
-import numpy as np
+from ipyleaflet import TileLayer
 from modules import interface, mapping, plotly_theme, leaflet_map, tile_server_pyramid
 import subprocess
 
@@ -37,6 +37,7 @@ page_header = ui.tags.div(
     class_="header",
 )
 
+# Define page content and interface structure
 app_ui = ui.page_fluid(
     page_dependencies,
     page_header,
@@ -45,20 +46,18 @@ app_ui = ui.page_fluid(
         # Add contents to the side bar
         interface.build_sidebar_content(),
 
-        # Defining the content outside the sidebar [for debugging]
-        # ui.output_text_verbatim('selected_pfaf_id')
-        
+        # Defining the content outside the sidebar 
         ui.layout_columns(
             ui.card(
                 ui.card_header(ui.tags.h2(
-                    "Map of the Amazon Basin \N{WORLD MAP}")),
+                    "Map of the Amazon Basin \N{ROUND PUSHPIN}")),
                 output_widget("heatmap"),
                 class_="plotly-center-container",
             ),
             ui.card(
                 ui.card_header(
                     ui.tags.h2(
-                        "Zonal statistics \N{MOUSE}")
+                        "Zonal statistics \N{INBOX TRAY}")
                 ),
                 output_widget("boxplot"),
                 full_screen=True,
@@ -94,16 +93,17 @@ app_ui = ui.page_fluid(
 
 # --- Server logic ---#
 def server(input: Inputs, output: Outputs, session: Session):
-    # Call Welcome message uncomment to show at start-up
+    
+    # Call Welcome message & uncomment to show at start-up
     # interface.info_modal()
 
     # Build the heatmap figure & register the heatmap figure as a widget
     heatmapfig, polygon_layer = leaflet_map.create_hydrobasin_map()
     register_widget("heatmap", heatmapfig)
     #current_data_layer = reactive.Value(None)
+    print(len(heatmapfig.layers))
 
     # Handle click events on the heatmap polygon
-    #polygon = interface.on_polygon_click(heatmapfig.data[0])
     polygon = reactive.Value("Waiting input")
     def on_polygon_clicked(pfaf_id):
         polygon.set(str(pfaf_id))
@@ -126,7 +126,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         except:
             return None
 
-    # Create a time slider to choose time-dimension
+    # Create a time slider to pick time-dimension
     @output
     @render.ui
     def time_index_slider():  # create a time slider
@@ -167,33 +167,41 @@ def server(input: Inputs, output: Outputs, session: Session):
     @reactive.effect
     def update_heatmap_figure():
         """Update tile layer given var, profile and time"""
+        if len(heatmapfig.layers)>2:
+            heatmapfig.remove_layer(heatmapfig.layers[2])
+        
         variable = input.var_selector()
-        #print(variable)
+        print(variable)
         time_idx = input.time_slider()
-        #print(time_idx)
+        print(time_idx)
         profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
-        #print(profile)
+        print(profile)
         category = int(input.forecast_category_selector())
-        #print(category)
-        #heatmapfig.remove_layer(initial_data_layer)
+        print(category)
+        vmin=40
+        vmax=100
+        TILE_SERVER_URL="http://localhost:5000"
 
         # Determine colormap based on variable
         if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
             colormaps = ['Blues', 'Greys', 'Reds']  # Inverted for temperature
         else:
             colormaps = ['Reds', 'Greys', 'Blues']  # Standard
+        
+        tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap=Reds&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
 
         # Update the layer
-        forecast_layer = leaflet_map.update_data_layer(
-            heatmapfig,
-            #initial_data_layer,
-            variable,
-            time_idx,
-            category,
-            profile,
-            colormap=colormaps[category],
+        forecast_layer = TileLayer(
+            url=tile_url,
+            name=f"{variable} - Category {category}",
+            opacity=1,
+            attribution='HydroViewer',
+            min_native_zoom = 4,
+            max_native_zoom = 9
         )
         heatmapfig.add_layer(forecast_layer)
+
+        print(TileLayer)
         return heatmapfig
         
         # Update info box

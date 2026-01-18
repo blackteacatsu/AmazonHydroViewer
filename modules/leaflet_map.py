@@ -40,9 +40,6 @@ def create_hydrobasin_map():
     )
 
     # request polygon layer of hydrobasins lvl.5
-    # with requests.get(shared.hydrobasins_lev05_url) as url:
-    #     geojson_data = json.loads(url.read().decode())
-    #with shared.hydrobasins_lev05_url as url:
     r = requests.get(shared.hydrobasins_lev05_url)
     geojson_data = r.json()
     
@@ -83,51 +80,54 @@ def create_hydrobasin_map():
 
     m.add_layer(polygon_layer)
 
+    # Placeholder for data tiles (will be updated reactively)
+    # data_layer = None
+
     return m, polygon_layer
 
-def update_data_layer(
-        map_widget,
-        #old_layer,
-        variable,
-        time_idx,
-        category,
-        profile=0,
-        colormap='Reds',
-        tile_server_url="http://localhost:5000"
-):
-    # Remove old layer if not None:
-    # if old_layer is not None:
-    #     map_widget.remove(old_layer)
+# def update_data_layer(
+#         map_widget,
+#         #old_layer,
+#         variable,
+#         time_idx,
+#         category,
+#         profile=0,
+#         colormap='Reds',
+#         tile_server_url="http://localhost:5000"
+# ):
+#     # Remove old layer if not None:
+#     # if old_layer is not None:
+#     #     map_widget.remove(old_layer)
     
-    # Build tile URL
-    requests.get(f"{tile_server_url}/cache/clear")
-    print("✓ Cache cleared")
-    tile_url = f"{tile_server_url}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png"
+#     # Build tile URL
+#     requests.get(f"{tile_server_url}/cache/clear")
+#     print("✓ Cache cleared")
+#     tile_url = f"{tile_server_url}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png"
 
-    "?colormap={colormap}&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
-    #Add query parameters
-    params = []
-    if colormap:
-        params.append(f"colormap={colormap}")
-        params.append(f"profile={profile}&mode=global&tms=true")
+#     "?colormap={colormap}&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
+#     #Add query parameters
+#     params = []
+#     if colormap:
+#         params.append(f"colormap={colormap}")
+#         params.append(f"profile={profile}&mode=global&tms=true")
     
-    if params:
-        tile_url += "?" + "&".join(params)
-    # print(tile_url)
-    # Create new layer
-    forecast_layer = TileLayer(
-        url=tile_url,
-        name=shared.list_of_variables.get(variable),
-        opacity=1,
-        attribution='HydroViewer',
-        min_native_zoom = 4,
-        max_native_zoom = 9
-    )
+#     if params:
+#         tile_url += "?" + "&".join(params)
+#     # print(tile_url)
+#     # Create new layer
+#     forecast_layer = TileLayer(
+#         url=tile_url,
+#         name=shared.list_of_variables.get(variable),
+#         opacity=1,
+#         attribution='HydroViewer',
+#         min_native_zoom = 4,
+#         max_native_zoom = 9
+#     )
     
-    # Add to map
-    return forecast_layer
+#     # Add to map
+#     return forecast_layer
 
-# Handle click event on the polygon layer
+# # Handle click event on the polygon layer
 def polygon_click_handler(polygon_layer, callback):
     def on_click(feature, **kwargs):
         if feature and 'properties' in feature:
