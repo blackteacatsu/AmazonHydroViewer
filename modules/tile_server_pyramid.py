@@ -1,294 +1,3 @@
-# """
-# Pyramid-based tile server for HydroViewer
-# Optimized for Shiny + ipyleaflet integration
-# """
-
-# from flask import Flask, send_file, request, jsonify
-# from flask_cors import CORS
-# import numpy as np
-# from PIL import Image
-# from io import BytesIO
-# import matplotlib.pyplot as plt
-# import matplotlib as mpl
-# from scipy.interpolate import RegularGridInterpolator
-# import pickle
-# from pathlib import Path
-# import hashlib
-# import shared
-
-# app = Flask(__name__)
-# CORS(app)
-
-# # Configuration
-# TILE_SIZE = 256
-# PYRAMID_DIR = Path('data/pyramids')
-# PYRAMID_CACHE = {}  # Cache loaded pyramids
-# TILE_IMAGE_CACHE = {}  # Cache rendered tiles
-
-
-# class RegionalTileServer:
-#     """Serves tiles from pyramids using regional coordinates"""
-    
-#     def __init__(self):
-#         self.pyramids = {}
-#         self.data_bounds = None
-    
-#     def load_pyramid(self, variable, profile=0):
-#         """Load pyramid from disk"""
-#         cache_key = f"{variable}_lvl_{profile}"
-        
-#         if cache_key in self.pyramids:
-#             return self.pyramids[cache_key]
-        
-#         pyramid_file = PYRAMID_DIR / f"pyramid_{variable}_lvl_{profile}.pkl"
-        
-#         if not pyramid_file.exists():
-#             raise FileNotFoundError(f"Pyramid not found: {pyramid_file}")
-        
-#         with open(pyramid_file, 'rb') as f:
-#             pyramid_data = pickle.load(f)
-        
-#         self.pyramids[cache_key] = pyramid_data
-#         self.data_bounds = pyramid_data['data_bounds']
-        
-#         print(f"Loaded pyramid: {cache_key}, zoom levels: {list(pyramid_data['pyramid'].keys())}")
-        
-#         return pyramid_data
-    
-#     def get_tile_bounds_regional(self, x, y, z):
-#         """Calculate tile bounds in regional coordinates"""
-#         if not self.data_bounds:
-#             raise ValueError("Data bounds not loaded")
-        
-#         n_tiles = 2 ** z
-        
-#         lon_min = self.data_bounds['lon_min']
-#         lon_max = self.data_bounds['lon_max']
-#         lat_min = self.data_bounds['lat_min']
-#         lat_max = self.data_bounds['lat_max']
-        
-#         tile_width_lon = (lon_max - lon_min) / n_tiles
-#         tile_height_lat = (lat_max - lat_min) / n_tiles
-        
-#         west = lon_min + x * tile_width_lon
-#         east = west + tile_width_lon
-#         north = lat_max - y * tile_height_lat  # Y is flipped for tiles
-#         south = north - tile_height_lat
-        
-#         return (west, south, east, north)
-    
-#     def interpolate_to_tile(self, data_slice, tile_bounds):
-#         """Interpolate data to tile grid"""
-#         west, south, east, north = tile_bounds
-        
-#         # Get data coordinates
-#         data_lat = np.asarray(data_slice.lat.values)
-#         data_lon = np.asarray(data_slice.lon.values)
-#         data_values = np.asarray(data_slice.values)
-        
-#         # Create tile coordinate grid
-#         tile_lons = np.linspace(west, east, TILE_SIZE)
-#         tile_lats = np.linspace(north, south, TILE_SIZE)  # Top to bottom
-        
-#         # Check overlap
-#         if (west > data_lon.max() or east < data_lon.min() or
-#             south > data_lat.max() or north < data_lat.min()):
-#             return np.full((TILE_SIZE, TILE_SIZE), np.nan)
-        
-#         # NaN handling
-#         if np.all(np.isnan(data_values)):
-#             return np.full((TILE_SIZE, TILE_SIZE), np.nan)
-        
-#         try:
-#             # Create interpolator
-#             interp = RegularGridInterpolator(
-#                 (data_lat, data_lon),
-#                 data_values,
-#                 method='linear',
-#                 bounds_error=False,
-#                 fill_value=np.nan
-#             )
-            
-#             # Interpolate
-#             tile_lat_grid, tile_lon_grid = np.meshgrid(tile_lats, tile_lons, indexing='ij')
-#             points = np.column_stack([tile_lat_grid.ravel(), tile_lon_grid.ravel()])
-#             tile_data = interp(points).reshape(TILE_SIZE, TILE_SIZE)
-            
-#             return tile_data
-            
-#         except Exception as e:
-#             print(f"Interpolation error: {e}")
-#             return np.full((TILE_SIZE, TILE_SIZE), np.nan)
-    
-#     def create_colormap_image(self, data, colormap_name, vmin, vmax):
-#         """Create RGBA image from data"""
-#         valid_data = data[~np.isnan(data)]
-        
-#         if len(valid_data) == 0:
-#             return Image.new('RGBA', (TILE_SIZE, TILE_SIZE), (0, 0, 0, 0))
-        
-#         # Auto-scale if needed
-#         if vmin is None:
-#             vmin = np.nanpercentile(valid_data, 2)
-#         if vmax is None:
-#             vmax = np.nanpercentile(valid_data, 98)
-        
-#         if vmin == vmax:
-#             vmax = vmin + 1
-        
-#         # Normalize and colorize
-#         norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax, clip=True)
-        
-#         try:
-#             cmap = plt.get_cmap(colormap_name)
-#         except:
-#             cmap = plt.get_cmap('viridis')
-        
-#         rgba = cmap(norm(data))
-#         rgba_uint8 = (rgba * 255).astype(np.uint8)
-        
-#         # Transparent NaNs
-#         rgba_uint8[np.isnan(data), 3] = 0
-        
-#         return Image.fromarray(rgba_uint8, mode='RGBA')
-
-
-# # Global server instance
-# tile_server = RegionalTileServer()
-
-
-# @app.route('/tiles/<variable>/<int:time_idx>/<int:category>/<int:z>/<int:x>/<int:y>.png')
-# def get_tile(variable, time_idx, category, z, x, y):
-#     """
-#     Serve a tile
-    
-#     Query params:
-#     - colormap: matplotlib colormap name
-#     - vmin, vmax: color scale range
-#     - profile: depth profile (0-3)
-#     - cache: enable/disable caching
-#     """
-#     colormap = request.args.get('colormap', 'RdBu_r')
-#     vmin = request.args.get('vmin', type=float)
-#     vmax = request.args.get('vmax', type=float)
-#     profile = request.args.get('profile', 0, type=int)
-#     use_cache = request.args.get('cache', 'true').lower() == 'true'
-    
-#     # Check cache
-#     cache_key = f"{variable}_{time_idx}_{category}_{z}_{x}_{y}_{colormap}_{vmin}_{vmax}_{profile}"
-#     cache_hash = hashlib.md5(cache_key.encode()).hexdigest()
-    
-#     if use_cache and cache_hash in TILE_IMAGE_CACHE:
-#         return send_file(
-#             BytesIO(TILE_IMAGE_CACHE[cache_hash]),
-#             mimetype='image/png'
-#         )
-    
-#     try:
-#         # Load pyramid
-#         pyramid_data = tile_server.load_pyramid(variable, profile)
-#         pyramid = pyramid_data['pyramid']
-        
-#         # Select appropriate zoom level
-#         if z not in pyramid:
-#             available_zooms = sorted(pyramid.keys())
-#             z_actual = min(available_zooms, key=lambda k: abs(k - z))
-#         else:
-#             z_actual = z
-        
-#         data = pyramid[z_actual]
-        
-#         # Select time and category
-#         data_slice = data.isel(time=time_idx, category=category)
-        
-#         # Get tile bounds
-#         tile_bounds = tile_server.get_tile_bounds_regional(x, y, z)
-        
-#         # Interpolate to tile
-#         tile_data = tile_server.interpolate_to_tile(data_slice, tile_bounds)
-        
-#         # Create image
-#         image = tile_server.create_colormap_image(tile_data, colormap, vmin, vmax)
-        
-#         # Save to bytes
-#         img_io = BytesIO()
-#         image.save(img_io, 'PNG', optimize=True)
-#         img_bytes = img_io.getvalue()
-        
-#         # Cache
-#         if use_cache:
-#             TILE_IMAGE_CACHE[cache_hash] = img_bytes
-            
-#             # Limit cache size
-#             if len(TILE_IMAGE_CACHE) > 1000:
-#                 for _ in range(100):
-#                     TILE_IMAGE_CACHE.pop(next(iter(TILE_IMAGE_CACHE)))
-        
-#         return send_file(BytesIO(img_bytes), mimetype='image/png')
-        
-#     except Exception as e:
-#         print(f"Tile generation error: {e}")
-#         import traceback
-#         traceback.print_exc()
-#         return str(e), 500
-
-
-# @app.route('/pyramid/info/<variable>')
-# def pyramid_info(variable):
-#     """Get pyramid information"""
-#     profile = request.args.get('profile', 0, type=int)
-    
-#     try:
-#         pyramid_data = tile_server.load_pyramid(variable, profile)
-        
-#         info = {
-#             'variable': variable,
-#             'profile': profile,
-#             'zoom_levels': list(pyramid_data['pyramid'].keys()),
-#             'grain_map': pyramid_data['grain_map'],
-#             'data_bounds': pyramid_data['data_bounds'],
-#             'levels': {}
-#         }
-        
-#         for zoom, data in pyramid_data['pyramid'].items():
-#             info['levels'][zoom] = {
-#                 'shape': [len(data.lat), len(data.lon)],
-#                 'grain': pyramid_data['grain_map'][zoom]
-#             }
-        
-#         return jsonify(info)
-        
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 500
-
-
-# @app.route('/cache/clear')
-# def clear_cache():
-#     """Clear tile cache"""
-#     TILE_IMAGE_CACHE.clear()
-#     return jsonify({'message': 'Cache cleared'})
-
-
-# @app.route('/health')
-# def health():
-#     """Health check"""
-#     return jsonify({
-#         'status': 'ok',
-#         'pyramids_loaded': len(tile_server.pyramids),
-#         'tiles_cached': len(TILE_IMAGE_CACHE)
-#     })
-
-
-# if __name__ == '__main__':
-#     print("="*60)
-#     print("HydroViewer Pyramid Tile Server")
-#     print("="*60)
-#     print("Starting on http://localhost:5000")
-#     print("Tiles: /tiles/{var}/{time}/{cat}/{z}/{x}/{y}.png")
-#     print("="*60)
-    
-#     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
-
 """
 Pyramid-based tile server for HydroViewer
 Optimized for Shiny + ipyleaflet integration
@@ -302,17 +11,21 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pickle
-from pathlib import Path
 import hashlib
 import xarray as xr
+import requests
+import io
+from urllib.parse import urljoin
+
 #import shared
+#from pathlib import Path
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
 TILE_SIZE = 256
-PYRAMID_DIR = Path('testbench/data/pyramids')
+PYRAMID_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
 PYRAMID_CACHE = {}  # Cache loaded pyramids
 TILE_IMAGE_CACHE = {}  # Cache rendered tiles
 
@@ -325,30 +38,51 @@ class RegionalTileServer:
         self.data_bounds = None
     
     def load_pyramid(self, variable, profile=0):
-        """Load pyramid from disk"""
-        cache_key = f"{variable}_lvl_{profile}"
+        # """Load pyramid from disk"""
+        # cache_key = f"{variable}_lvl_{profile}"
         
-        if cache_key in self.pyramids:
-            return self.pyramids[cache_key]
+        # if cache_key in self.pyramids:
+        #     return self.pyramids[cache_key]
         
-        pyramid_file = PYRAMID_DIR / f"pyramid_{variable}_lvl_{profile}.pkl"
+        # if not pyramid_file.exists():
+        #     raise FileNotFoundError(f"Pyramid not found: {pyramid_file}")
         
-        if not pyramid_file.exists():
-            raise FileNotFoundError(f"Pyramid not found: {pyramid_file}")
+        # with open(pyramid_file, 'rb') as f:
+        #     pyramid_data = pickle.load(f)
         
-        with open(pyramid_file, 'rb') as f:
-            pyramid_data = pickle.load(f)
-        
-        self.pyramids[cache_key] = pyramid_data
-        self.data_bounds = pyramid_data['data_bounds']
+        # self.pyramids[cache_key] = pyramid_data
+        # self.data_bounds = pyramid_data['data_bounds']
         
         # print("="*60)        
         # print(f"Loaded pyramid: {cache_key}, \n"
         #       f"zoom levels: {list(pyramid_data['pyramid'].keys())}, \n"
         #       f"bounds: {pyramid_data['data_bounds']}" )
         # print("="*60)
+        """Load pyramid from remote"""
+        cache_key = f"{variable}_lvl_{profile}"
+        if cache_key in self.pyramids:
+            return self.pyramids[cache_key]
         
-        return pyramid_data
+        filename = f"prob_2024_dec_tercile_probability_max_{variable}_lvl_{profile}_subsampled.pkl"
+        url = urljoin(PYRAMID_DIR, f"refs/heads/main/get_ldas_probabilistic_output/subsampled/{filename}")
+
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            pyramid_data = pickle.load(io.BytesIO(response.content))
+            self.pyramids[cache_key] = pyramid_data
+            self.data_bounds = pyramid_data['data_bounds']
+            return pyramid_data
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise FileNotFoundError(
+                    f"Pyramid not found at remote URL: {url}\n"
+                    f"Ensure pyramid files are uploaded to the GitHub repository"
+                )
+            raise RuntimeError(f"Failed to fetch pyramid from {url}: {e}")
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Network error fetching pyramid from {url}: {e}")
     
     def tile_to_lonlat_bounds(self, zoom, x, y):
         """

@@ -164,9 +164,6 @@ def server(input: Inputs, output: Outputs, session: Session):
             return f"Currently at {interface.format_date(time[input.time_slider()].values)}" 
         except Exception:
             return f"No dataset loaded or time variable missing."
-    
-    # Track the current data layer so we can remove it when updating
-    # current_tile_layer = reactive.Value(None)
 
     @reactive.effect
     def update_heatmap_figure():
@@ -195,39 +192,27 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
 
-        # Remove old tile layer if it exists
-        # old_layer = current_tile_layer.get()
-        # if old_layer is not None:
-        #     try:
-        #         heatmapfig.remove_layer(old_layer)
-        #     except:
-        #         pass  # Layer may already be removed
-
-        # Create and add new layer
+        # Create new layer first
         forecast_layer = TileLayer(
             url=tile_url,
             name=f"{variable} - Category {category}",
             opacity=0.8,
             attribution='HydroViewer',
             min_native_zoom=4,
-            max_native_zoom=9
+            max_native_zoom=9,
         )
+
+        # Remove old forecast tile layers (but not the one we just created)
+        if len(heatmapfig.layers)>3:
+            print(f'Removed old layer: {heatmapfig.layers[-1].name}')
+            heatmapfig.layers = heatmapfig.layers[:2]
+
+        # Add the new layer
         heatmapfig.add_layer(forecast_layer)
 
-        print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)} \n')
-        if len(heatmapfig.layers)>3:
-            print(heatmapfig.layers[0].name)
-            print(heatmapfig.layers[1].name)
-            print(heatmapfig.layers[2].name)
-            heatmapfig.remove_layer(heatmapfig.layers[:2])
-            print(f'Map Widget layer removed: # of layers currently loaded is {len(heatmapfig.layers)}')
-
-        # Store reference to current layer
-        #current_tile_layer=forecast_layer
-
+        print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)}')        
         return heatmapfig
-        #print(f"Added tile layer: {variable}, time={time_idx}, cat={category}")
-        
+    
         # Update info box
         # var_name = shared.list_of_variables.get(variable)
         # category_name = shared.list_of_pcate.get(category)

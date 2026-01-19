@@ -56,7 +56,7 @@ def create_hydrobasin_map():
         'weight': 0,
         'fillOpacity': 0.4
     },
-    name='HydroBasins'
+    name='HydroBasins @lvl 5'
     )
 
     # CSS styling to match app font

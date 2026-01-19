@@ -7,7 +7,7 @@ Generate buttons in the sidebar
 def build_sidebar_content():
     return ui.sidebar(
         # Buttons to select variable
-        ui.input_selectize(
+        ui.input_radio_buttons(
             "var_selector", 
             "Select variables below:", 
             choices=shared.list_of_variables, 

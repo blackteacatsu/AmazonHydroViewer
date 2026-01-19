@@ -156,6 +156,7 @@ colorscales_temp = [
 github_data_repo = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
 
 probabilistic_data_path = github_data_repo + 'main/get_ldas_probabilistic_output/prob_2024_12_31_tercile_probability_max_'
+# pyramid_file = PYRAMID_DIR / f"prob_2024_dec_tercile_probability_max_{variable}_lvl_{profile}_subsampled.pkl"
 
 # general regional averaged forecast data path  @remote location
 raw_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_csv/zonal_stats_pfaf_'
@@ -166,3 +167,8 @@ climatology_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_c
 hydrobasins_lev05_url = 'https://raw.githubusercontent.com/blackteacatsu/spring_2024_envs_research_amazon_ldas/main/resources/hybas_sa_lev05_areaofstudy.geojson'
 
 web_app_title = 'Hydrometeorology of The Amazon Basin'
+
+# Pyramid configuration
+USE_PYRAMID = True  # Set to False to use original method
+PYRAMID_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
+PYRAMID_ZOOM_LEVEL = 4  # Which zoom level to use for heatmap (0-5)
