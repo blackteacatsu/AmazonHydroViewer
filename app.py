@@ -1,11 +1,10 @@
 from shiny import App, Inputs, Outputs, Session, reactive, ui, render
 from shinywidgets import output_widget, render_plotly, register_widget, render_widget
-import xarray as xr
 import plotly.graph_objects as go
 import shared
 import pandas as pd
 from ipyleaflet import TileLayer
-from modules import interface, mapping, plotly_theme, leaflet_map, tile_server_pyramid
+from modules import interface, mapping, plotly_theme, leaflet_map, pyramidload
 import subprocess
 
 # --- Setup page ui ---#
@@ -101,7 +100,9 @@ def server(input: Inputs, output: Outputs, session: Session):
     heatmapfig, polygon_layer = leaflet_map.create_hydrobasin_map()
     register_widget("heatmap", heatmapfig)
     #current_data_layer = reactive.Value(None)
-    print(len(heatmapfig.layers))
+    print(f'Map Widget Buildt: # of layers currently loaded is {len(heatmapfig.layers)}')
+    print(f'Map Widget Buildt: name of 1st layer {heatmapfig.layers[0].name}')
+    print(f'Map Widget Buildt: name of 2nd layer {heatmapfig.layers[1].name}')
 
     # Handle click events on the heatmap polygon
     polygon = reactive.Value("Waiting input")
@@ -164,45 +165,68 @@ def server(input: Inputs, output: Outputs, session: Session):
         except Exception:
             return f"No dataset loaded or time variable missing."
     
+    # Track the current data layer so we can remove it when updating
+    # current_tile_layer = reactive.Value(None)
+
     @reactive.effect
     def update_heatmap_figure():
         """Update tile layer given var, profile and time"""
-        if len(heatmapfig.layers)>2:
-            heatmapfig.remove_layer(heatmapfig.layers[2])
-        
         variable = input.var_selector()
-        print(variable)
-        time_idx = input.time_slider()
-        print(time_idx)
-        profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
-        print(profile)
         category = int(input.forecast_category_selector())
-        print(category)
-        vmin=40
-        vmax=100
-        TILE_SERVER_URL="http://localhost:5000"
+        profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
+
+        # Get time_slider value, default to 0 if not yet available
+        try:
+            time_idx = input.time_slider()
+            if time_idx is None:
+                time_idx = 0
+        except:
+            time_idx = 0
+
+        vmin = 40
+        vmax = 100
+        TILE_SERVER_URL = "http://localhost:5000"
 
         # Determine colormap based on variable
         if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
-            colormaps = ['Blues', 'Greys', 'Reds']  # Inverted for temperature
+            colormap = 'RdBu_r'  # Inverted for temperature
         else:
-            colormaps = ['Reds', 'Greys', 'Blues']  # Standard
-        
-        tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap=Reds&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
+            colormap = 'Reds'
 
-        # Update the layer
+        tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
+
+        # Remove old tile layer if it exists
+        # old_layer = current_tile_layer.get()
+        # if old_layer is not None:
+        #     try:
+        #         heatmapfig.remove_layer(old_layer)
+        #     except:
+        #         pass  # Layer may already be removed
+
+        # Create and add new layer
         forecast_layer = TileLayer(
             url=tile_url,
             name=f"{variable} - Category {category}",
-            opacity=1,
+            opacity=0.8,
             attribution='HydroViewer',
-            min_native_zoom = 4,
-            max_native_zoom = 9
+            min_native_zoom=4,
+            max_native_zoom=9
         )
         heatmapfig.add_layer(forecast_layer)
 
-        print(TileLayer)
+        print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)} \n')
+        if len(heatmapfig.layers)>3:
+            print(heatmapfig.layers[0].name)
+            print(heatmapfig.layers[1].name)
+            print(heatmapfig.layers[2].name)
+            heatmapfig.remove_layer(heatmapfig.layers[:2])
+            print(f'Map Widget layer removed: # of layers currently loaded is {len(heatmapfig.layers)}')
+
+        # Store reference to current layer
+        #current_tile_layer=forecast_layer
+
         return heatmapfig
+        #print(f"Added tile layer: {variable}, time={time_idx}, cat={category}")
         
         # Update info box
         # var_name = shared.list_of_variables.get(variable)
@@ -322,25 +346,25 @@ def server(input: Inputs, output: Outputs, session: Session):
         return ensemblebox
 
 
-def start_tile_server():
-    global _TILE_PROC
-    if _TILE_PROC is not None and _TILE_PROC.poll() is None:
-        return  # already running
+# def start_tile_server():
+#     global _TILE_PROC
+#     if _TILE_PROC is not None and _TILE_PROC.poll() is None:
+#         return  # already running
 
-    tile_path = os.path.join(os.path.dirname(__file__), "tile_server.py")
+#     tile_path = os.path.join(os.path.dirname(__file__), "tile_server.py")
 
-    # Use the SAME python that's running Shiny (base)
-    _TILE_PROC = subprocess.Popen(
-        [sys.executable, tile_path],
-        stdout=subprocess.PIPE,   # or None if you want it in console
-        stderr=subprocess.STDOUT,
-        cwd=os.path.dirname(__file__),
-    )
+#     # Use the SAME python that's running Shiny (base)
+#     _TILE_PROC = subprocess.Popen(
+#         [sys.executable, tile_path],
+#         stdout=subprocess.PIPE,   # or None if you want it in console
+#         stderr=subprocess.STDOUT,
+#         cwd=os.path.dirname(__file__),
+#     )
 
-def stop_tile_server():
-    global _TILE_PROC
-    if _TILE_PROC is not None and _TILE_PROC.poll() is None:
-        _TILE_PROC.terminate()
+# def stop_tile_server():
+#     global _TILE_PROC
+#     if _TILE_PROC is not None and _TILE_PROC.poll() is None:
+#         _TILE_PROC.terminate()
 
 app = App(app_ui, server)
 
