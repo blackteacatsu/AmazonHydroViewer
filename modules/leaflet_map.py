@@ -36,7 +36,6 @@ def create_hydrobasin_map():
         zoom=4.5,
         scroll_wheel_zoom=True,
         basemap=basemaps.CartoDB.Voyager  # Or no basemap so we can add custom
-
     )
 
     # request polygon layer of hydrobasins lvl.5

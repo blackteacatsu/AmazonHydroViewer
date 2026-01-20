@@ -102,7 +102,7 @@ def server(input: Inputs, output: Outputs, session: Session):
     #current_data_layer = reactive.Value(None)
     print(f'Map Widget Buildt: # of layers currently loaded is {len(heatmapfig.layers)}')
     print(f'Map Widget Buildt: name of 1st layer {heatmapfig.layers[0].name}')
-    print(f'Map Widget Buildt: name of 2nd layer {heatmapfig.layers[1].name}')
+    print(f'Map Widget Buildt: name of 2nd layer {heatmapfig.layers[1].name} \n')
 
     # Handle click events on the heatmap polygon
     polygon = reactive.Value("Waiting input")
@@ -165,14 +165,13 @@ def server(input: Inputs, output: Outputs, session: Session):
         except Exception:
             return f"No dataset loaded or time variable missing."
 
-    @reactive.effect
-    def update_heatmap_figure():
-        """Update tile layer given var, profile and time"""
+    @reactive.calc
+    def build_tile_url():
+        """Build tile URL from current inputs"""
         variable = input.var_selector()
         category = int(input.forecast_category_selector())
         profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
 
-        # Get time_slider value, default to 0 if not yet available
         try:
             time_idx = input.time_slider()
             if time_idx is None:
@@ -184,34 +183,39 @@ def server(input: Inputs, output: Outputs, session: Session):
         vmax = 100
         TILE_SERVER_URL = "http://localhost:5000"
 
-        # Determine colormap based on variable
         if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
-            colormap = 'RdBu_r'  # Inverted for temperature
+            colormap = 'RdBu_r'
         else:
             colormap = 'Reds'
 
         tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
+        return tile_url, variable, category
 
-        # Create new layer first
+    @reactive.effect
+    @reactive.event(build_tile_url)
+    def update_heatmap_figure():
+        """Update tile layer when tile URL changes"""
+        tile_url, variable, category = build_tile_url()
+
+        # Remove all existing HydroViewer data layers first
+        while len(heatmapfig.layers) > 3:
+            print(f'Removing layer: {heatmapfig.layers[-1].name}')
+            heatmapfig.layers = heatmapfig.layers[:2]
+            
+        # Create and add new layer
         forecast_layer = TileLayer(
             url=tile_url,
             name=f"{variable} - Category {category}",
             opacity=0.8,
             attribution='HydroViewer',
-            min_native_zoom=4,
-            max_native_zoom=9,
+            min_native_zoom=5,
+            max_native_zoom=10,
         )
-
-        # Remove old forecast tile layers (but not the one we just created)
-        if len(heatmapfig.layers)>3:
-            print(f'Removed old layer: {heatmapfig.layers[-1].name}')
-            heatmapfig.layers = heatmapfig.layers[:2]
-
-        # Add the new layer
         heatmapfig.add_layer(forecast_layer)
 
-        print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)}')        
-        return heatmapfig
+        print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)}')
+        for layer in heatmapfig.layers:
+            print(f'  - {layer.name}')
     
         # Update info box
         # var_name = shared.list_of_variables.get(variable)
