@@ -11,7 +11,7 @@ def build_sidebar_content():
             "var_selector", 
             "Select variables below:", 
             choices=shared.list_of_variables, 
-            selected=None),
+            selected='Rainf_tavg'),
 
         # Buttons to select profile
         ui.panel_conditional(

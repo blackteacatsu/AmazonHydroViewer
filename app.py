@@ -1,11 +1,11 @@
 from shiny import App, Inputs, Outputs, Session, reactive, ui, render
-from shinywidgets import output_widget, render_plotly, register_widget, render_widget
+from shinywidgets import output_widget, render_plotly, register_widget
 import plotly.graph_objects as go
 import shared
 import pandas as pd
 from ipyleaflet import TileLayer
-from modules import interface, mapping, plotly_theme, leaflet_map, pyramidload
-import subprocess
+from modules import interface, mapping, plotly_theme, leaflet_map
+import requests
 
 # --- Setup page ui ---#
 
@@ -151,8 +151,10 @@ def server(input: Inputs, output: Outputs, session: Session):
         except Exception as e:
             return ui.div("No dataset loaded or time variable missing.")
     
-    #Display the current time index
-    def get_time_steps():
+    # Display the current time index
+    @output
+    @render.text
+    def time_index():
         try:
             time = get_time_steps()
             if time is None:
@@ -161,23 +163,26 @@ def server(input: Inputs, output: Outputs, session: Session):
             if current_time < 0 or current_time >= len(time):
                 return "Invalid time index selected."
 
-            return f"Currently at {interface.format_date(time[input.time_slider()].values)}" 
+            return f"Currently at {interface.format_date(time[input.time_slider()].values)}"
         except Exception:
-            return f"No dataset loaded or time variable missing."
+            return "No dataset loaded or time variable missing."
 
     @reactive.calc
+    @reactive.event(input.var_selector)
     def build_tile_url():
         """Build tile URL from current inputs"""
         variable = input.var_selector()
+        if not variable:
+            return None
         category = int(input.forecast_category_selector())
         profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
 
         try:
             time_idx = input.time_slider()
             if time_idx is None:
-                time_idx = 0
-        except:
-            time_idx = 0
+                return None
+        except Exception:
+            return None
 
         vmin = 40
         vmax = 100
@@ -195,23 +200,39 @@ def server(input: Inputs, output: Outputs, session: Session):
     @reactive.event(build_tile_url)
     def update_heatmap_figure():
         """Update tile layer when tile URL changes"""
-        tile_url, variable, category = build_tile_url()
+        # Clear cache first to ensure fresh tiles
+        try:
+            requests.get(f"http://localhost:5000/cache/clear")
+            print("✓ Cache cleared")
+        except:
+            print("⚠ Could not clear cache")
+    
+        result = build_tile_url()
+        if result is None:
+            return
+        tile_url, variable, category = result
 
-        # Remove all existing HydroViewer data layers first
-        while len(heatmapfig.layers) > 3:
-            print(f'Removing layer: {heatmapfig.layers[-1].name}')
-            heatmapfig.layers = heatmapfig.layers[:2]
-            
+        # Remove previous forecast layer if present
+        if len(heatmapfig.layers) > 3:
+            prev_layer = heatmapfig.layers[2]
+            print(f"Removing layer: {prev_layer.name}")
+            heatmapfig.remove_layer(prev_layer)
+        # prev_layer = current_data_layer.get()
+        # if prev_layer is not None and prev_layer in heatmapfig.layers:
+        #     print(f"Removing layer: {prev_layer.name}")
+        #     heatmapfig.remove_layer(prev_layer)
+
         # Create and add new layer
         forecast_layer = TileLayer(
             url=tile_url,
             name=f"{variable} - Category {category}",
             opacity=0.8,
             attribution='HydroViewer',
-            min_native_zoom=5,
-            max_native_zoom=10,
+            min_native_zoom=4,
+            max_native_zoom=9,
         )
         heatmapfig.add_layer(forecast_layer)
+        #current_data_layer.set(forecast_layer)
 
         print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)}')
         for layer in heatmapfig.layers:

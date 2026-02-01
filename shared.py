@@ -7,7 +7,7 @@ list_of_variables = {
     'Tair_f_tavg':'Air Temperature',
     'SoilMoist_inst': 'Soil Moisture',
     'SoilTemp_inst': 'Soil Temperature',
-    #'Streamflow_tavg': 'stream flow'
+    'Streamflow_tavg': 'Stream Flow'
 }
 
 # list of surface variable units
