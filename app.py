@@ -67,7 +67,7 @@ app_ui = ui.page_fluid(
                 ui.card_header(ui.tags.h2(
                     "Select Time \N{TEAR-OFF CALENDAR}")),
                 ui.div(
-                    ui.output_ui("time_index_slider"),
+                    ui.output_ui("time_step_slider"),
                     ui.output_text_verbatim("time_index"),
                     class_="center-control-content",
                 ),
@@ -130,7 +130,7 @@ def server(input: Inputs, output: Outputs, session: Session):
     # Create a time slider to pick time-dimension
     @output
     @render.ui
-    def time_index_slider():  # create a time slider
+    def time_step_slider():  # create a time slider
         try:
             time = get_time_steps()
             if time is None:
@@ -141,7 +141,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                     "time_slider",
                     "Select forecast lead time (in month)",
                     min=0,
-                    max=len(time) - 1,
+                    max=5,
                     animate=True,
                     step=1,
                     value=0,
