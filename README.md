@@ -95,6 +95,10 @@ The dashboard supports visualization of the following hydrometeorological variab
    shiny run app.py
    ```
 
+   Note: `www/jupyter-leaflet.js` is intentionally vendored in this repository.  
+   The Shiny app serves this file as a static asset to satisfy the ipyleaflet widget dependency (`/jupyter-leaflet.js`).  
+   If this file is missing, the browser will return `404` for `/jupyter-leaflet.js` and the Leaflet widget can fail to initialize.
+
 4. **Access the dashboard**
 
    Open your web browser and navigate to `http://localhost:8000`
@@ -160,6 +164,8 @@ AmazonHydroViewer/
 ├── shared.py                   # Shared configuration and constants
 ├── requirements.txt            # Python dependencies
 ├── styles.css                  # Custom CSS styling
+├── www/
+│   └── jupyter-leaflet.js      # Vendored ipyleaflet widget JS dependency
 │
 ├── modules/
 │   ├── interface.py           # UI components and callbacks
