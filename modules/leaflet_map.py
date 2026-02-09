@@ -2,11 +2,11 @@
 ipyleaflet integration for Shiny app
 Replaces Plotly heatmap with tile-based map
 """
-
-from ipyleaflet import Map, basemaps, TileLayer, GeoJSON, WidgetControl
+import ipyleaflet as ipyl
+#from ipyleaflet import Map, basemaps, TileLayer, GeoJSON, WidgetControl
 from ipywidgets import HTML
 import requests
-import json
+#import json
 import shared
 
 def create_hydrobasin_map():
@@ -31,18 +31,18 @@ def create_hydrobasin_map():
     """
 
     # Initialize leaflet map object
-    m = Map(
+    m = ipyl.Map(
         center=[-7, -66],
         zoom=4.5,
         scroll_wheel_zoom=True,
-        basemap=basemaps.CartoDB.Voyager  # Or no basemap so we can add custom
+        basemap=ipyl.basemaps.CartoDB.Voyager  # Or no basemap so we can add custom
     )
 
     # request polygon layer of hydrobasins lvl.5
     r = requests.get(shared.hydrobasins_lev05_url)
     geojson_data = r.json()
     
-    polygon_layer = GeoJSON(
+    polygon_layer = ipyl.GeoJSON(
     data=geojson_data,
     style={
         'color': 'grey',
@@ -68,7 +68,7 @@ def create_hydrobasin_map():
         box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     """
     hover_info = HTML(value=f'<div style="{hover_style}"><b>Hover over a basin</b></div>')
-    hover_control = WidgetControl(widget=hover_info, position='topright')
+    hover_control = ipyl.WidgetControl(widget=hover_info, position='topright')
     m.add_control(hover_control)
 
     def on_hover(event, feature, **kwargs):
@@ -79,10 +79,20 @@ def create_hydrobasin_map():
 
     m.add_layer(polygon_layer)
 
-    # Placeholder for data tiles (will be updated reactively)
-    # data_layer = None
+    layercontrol = ipyl.LayersControl(position='bottomright') # Control layers 
+    m.add_control(layercontrol)
 
     return m, polygon_layer
+
+# Handle click event on the polygon layer
+def polygon_click_handler(polygon_layer, callback):
+    def on_click(feature, **kwargs):
+        if feature and 'properties' in feature:
+            pfaf_id = feature['properties'].get('PFAF_ID', 'N/A')
+            if pfaf_id:
+                callback(pfaf_id)
+
+    polygon_layer.on_click(on_click)
 
 # def update_data_layer(
 #         map_widget,
@@ -126,15 +136,7 @@ def create_hydrobasin_map():
 #     # Add to map
 #     return forecast_layer
 
-# # Handle click event on the polygon layer
-def polygon_click_handler(polygon_layer, callback):
-    def on_click(feature, **kwargs):
-        if feature and 'properties' in feature:
-            pfaf_id = feature['properties'].get('PFAF_ID', 'N/A')
-            if pfaf_id:
-                callback(pfaf_id)
 
-    polygon_layer.on_click(on_click)
 
 # hover_info = HTML(value='<b>Hover over a basin</b>')
 # def polygon_hover_handler(polygon_layer, callback):

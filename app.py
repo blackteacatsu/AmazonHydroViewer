@@ -1,5 +1,6 @@
 from shiny import App, Inputs, Outputs, Session, reactive, ui, render
-from shinywidgets import output_widget, render_plotly, register_widget
+from pathlib import Path
+from shinywidgets import output_widget, render_plotly, render_widget
 import plotly.graph_objects as go
 import shared
 import pandas as pd
@@ -94,15 +95,18 @@ app_ui = ui.page_fluid(
 def server(input: Inputs, output: Outputs, session: Session):
     
     # Call Welcome message & uncomment to show at start-up
-    # interface.info_modal()
+    ## interface.info_modal()
 
     # Build the heatmap figure & register the heatmap figure as a widget
     heatmapfig, polygon_layer = leaflet_map.create_hydrobasin_map()
-    register_widget("heatmap", heatmapfig)
+
+    @render_widget
+    def heatmap():
+        return heatmapfig
     #current_data_layer = reactive.Value(None)
-    print(f'Map Widget Buildt: # of layers currently loaded is {len(heatmapfig.layers)}')
-    print(f'Map Widget Buildt: name of 1st layer {heatmapfig.layers[0].name}')
-    print(f'Map Widget Buildt: name of 2nd layer {heatmapfig.layers[1].name} \n')
+    # print(f'Map Widget Buildt: # of layers currently loaded is {len(heatmapfig.layers)}')
+    # print(f'Map Widget Buildt: name of 1st layer {heatmapfig.layers[0].name}')
+    # print(f'Map Widget Buildt: name of 2nd layer {heatmapfig.layers[1].name} \n')
 
     # Handle click events on the heatmap polygon
     polygon = reactive.Value("Waiting input")
@@ -122,7 +126,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 var=input.var_selector(),
                 profile=input.depth_selector()
             )
-            print(time)
+            #print(time)
             return time
         except:
             return None
@@ -168,7 +172,12 @@ def server(input: Inputs, output: Outputs, session: Session):
             return "No dataset loaded or time variable missing."
 
     @reactive.calc
-    @reactive.event(input.var_selector)
+    @reactive.event(
+        input.var_selector,
+        input.forecast_category_selector,
+        input.depth_selector,
+        input.time_slider,
+    )
     def build_tile_url():
         """Build tile URL from current inputs"""
         variable = input.var_selector()
@@ -193,7 +202,8 @@ def server(input: Inputs, output: Outputs, session: Session):
         else:
             colormap = 'Reds'
 
-        tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&tms=true&vmin={vmin}&vmax={vmax}"
+
+        tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&vmin={vmin}&vmax={vmax}"
         return tile_url, variable, category
 
     @reactive.effect
@@ -212,15 +222,18 @@ def server(input: Inputs, output: Outputs, session: Session):
             return
         tile_url, variable, category = result
 
-        # Remove previous forecast layer if present
+        # Remove existing HydroViewer data layers first
         if len(heatmapfig.layers) > 3:
-            prev_layer = heatmapfig.layers[2]
-            print(f"Removing layer: {prev_layer.name}")
-            heatmapfig.remove_layer(prev_layer)
+            for layer in list(heatmapfig.layers):
+                if getattr(layer, "attribution", None) == "HydroViewer":
+                    print(f"Removing layer: {layer.name}")
+                    heatmapfig.remove_layer(layer)
         # prev_layer = current_data_layer.get()
         # if prev_layer is not None and prev_layer in heatmapfig.layers:
         #     print(f"Removing layer: {prev_layer.name}")
         #     heatmapfig.remove_layer(prev_layer)
+        # Sanity check
+        print(f'Attempt to request: {tile_url}')
 
         # Create and add new layer
         forecast_layer = TileLayer(
@@ -230,14 +243,14 @@ def server(input: Inputs, output: Outputs, session: Session):
             attribution='HydroViewer',
             min_native_zoom=4,
             max_native_zoom=9,
+            tms=True,
         )
         heatmapfig.add_layer(forecast_layer)
-        #current_data_layer.set(forecast_layer)
 
         print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)}')
         for layer in heatmapfig.layers:
             print(f'  - {layer.name}')
-    
+            
         # Update info box
         # var_name = shared.list_of_variables.get(variable)
         # category_name = shared.list_of_pcate.get(category)
@@ -311,9 +324,9 @@ def server(input: Inputs, output: Outputs, session: Session):
                 go.Box(
                     y=data_for_t,
                     x= [month] * len(data_for_t),
-                    name=month,  # This creates the legend label
+                    name=month,  
                     marker_color=None,  # Let Plotly pick auto color
-                    boxpoints=False,  # Turn off individual points
+                    boxpoints=False,  
                     hoverinfo='x + y',  # Show only y-axis values in hover
                 )
             )
@@ -322,7 +335,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         ensemblebox.add_trace(
             go.Scatter(
                 y=climatology,
-                x=time_labels,  # [interface.format_date(t)] * len(data_for_t),
+                x=time_labels, 
                 mode="lines+markers",
                 name=f"(Climatology Mean)",
                 # marker_color=None,  # Let Plotly pick auto color
@@ -376,6 +389,6 @@ def server(input: Inputs, output: Outputs, session: Session):
 #     if _TILE_PROC is not None and _TILE_PROC.poll() is None:
 #         _TILE_PROC.terminate()
 
-app = App(app_ui, server)
+app = App(app_ui, server, static_assets=Path(__file__).parent / "www")
 
 
