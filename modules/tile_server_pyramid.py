@@ -28,6 +28,7 @@ TILE_SIZE = 256
 PYRAMID_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
 PYRAMID_CACHE = {}  # Cache loaded pyramids
 TILE_IMAGE_CACHE = {}  # Cache rendered tiles
+API_VERSION = "2026-02-08"
 
 
 class RegionalTileServer:
@@ -452,6 +453,36 @@ def pyramid_info(variable):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/pyramid/time/<variable>')
+def pyramid_time(variable):
+    """Get available time coordinates for a variable/profile."""
+    profile = request.args.get('profile', 0, type=int)
+
+    try:
+        pyramid_data = tile_server.load_pyramid(variable, profile)
+        pyramid = pyramid_data['pyramid']
+        # Use any zoom level; time coordinate is shared across levels.
+        sample_zoom = sorted(pyramid.keys())[0]
+        time_values = pyramid[sample_zoom].time.values
+
+        time_iso = []
+        for t in time_values:
+            if isinstance(t, np.datetime64):
+                time_iso.append(np.datetime_as_string(t, unit='s'))
+            else:
+                time_iso.append(str(t))
+
+        return jsonify({
+            'variable': variable,
+            'profile': int(profile),
+            'time': time_iso,
+            'count': len(time_iso),
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/test/save_tile/<variable>/<int:time_idx>/<int:category>/<int:z>/<int:x>/<int:y>')
 def save_test_tile(variable, time_idx, category, z, x, y):
     """Save a test tile to disk to verify transparency"""
@@ -504,6 +535,7 @@ def clear_cache():
 def health():
     """Health check"""
     return jsonify({
+        'api_version': API_VERSION,
         'status': 'ok',
         'pyramids_loaded': len(tile_server.pyramids),
         'tiles_cached': len(TILE_IMAGE_CACHE)

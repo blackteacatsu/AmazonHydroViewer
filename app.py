@@ -5,8 +5,11 @@ import plotly.graph_objects as go
 import shared
 import pandas as pd
 from ipyleaflet import TileLayer
-from modules import interface, mapping, plotly_theme, leaflet_map
+from modules import interface, plotly_theme, leaflet_map
 import requests
+
+# Shared local tile server URL
+TILE_SERVER_URL = "http://localhost:5000"
 
 # --- Setup page ui ---#
 
@@ -109,26 +112,34 @@ def server(input: Inputs, output: Outputs, session: Session):
     # print(f'Map Widget Buildt: name of 2nd layer {heatmapfig.layers[1].name} \n')
 
     # Handle click events on the heatmap polygon
-    polygon = reactive.Value("Waiting input")
-    def on_polygon_clicked(pfaf_id):
-        polygon.set(str(pfaf_id))
-        print(f"Polygon clicked: {pfaf_id}")
+    # polygon = reactive.Value("Waiting input")
+    # def on_polygon_clicked(pfaf_id):
+    #     polygon.set(str(pfaf_id))
+    #     print(f"Polygon clicked: {pfaf_id}")
     
-    leaflet_map.polygon_click_handler(polygon_layer, on_polygon_clicked)
+    # leaflet_map.polygon_click_handler(polygon_layer, on_polygon_clicked)
 
     # Get time index 
     @reactive.calc
     def get_time_steps():
-        """Get time steps from any variable"""
+        """Get time steps from tile server metadata endpoint."""
         try:
-            # Just need time info, use any variable
-            _, _, _, time = mapping.retrieve_data_from_remote(
-                var=input.var_selector(),
-                profile=input.depth_selector()
+            variable = input.var_selector()
+            if not variable:
+                return None
+
+            profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
+            res = requests.get(
+                f"{TILE_SERVER_URL}/pyramid/time/{variable}",
+                params={"profile": profile},
+                timeout=10,
             )
-            #print(time)
-            return time
-        except:
+            if res.status_code != 200:
+                return None
+            payload = res.json()
+            time_values = payload.get("time", [])
+            return time_values if time_values else None
+        except Exception:
             return None
 
     # Create a time slider to pick time-dimension
@@ -145,7 +156,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                     "time_slider",
                     "Select forecast lead time (in month)",
                     min=0,
-                    max=5,
+                    max=len(time) - 1,
                     animate=True,
                     step=1,
                     value=0,
@@ -167,7 +178,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             if current_time < 0 or current_time >= len(time):
                 return "Invalid time index selected."
 
-            return f"Currently at {interface.format_date(time[input.time_slider()].values)}"
+            return f"Currently at {interface.format_date(time[input.time_slider()])}"
         except Exception:
             return "No dataset loaded or time variable missing."
 
@@ -195,8 +206,6 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         vmin = 40
         vmax = 100
-        TILE_SERVER_URL = "http://localhost:5000"
-
         if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
             colormap = 'RdBu_r'
         else:
@@ -212,7 +221,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         """Update tile layer when tile URL changes"""
         # Clear cache first to ensure fresh tiles
         try:
-            requests.get(f"http://localhost:5000/cache/clear")
+            requests.get(f"{TILE_SERVER_URL}/cache/clear")
             print("✓ Cache cleared")
         except:
             print("⚠ Could not clear cache")
@@ -223,11 +232,15 @@ def server(input: Inputs, output: Outputs, session: Session):
         tile_url, variable, category = result
 
         # Remove existing HydroViewer data layers first
+        # for layer in list(heatmapfig.layers):
+        #     if getattr(layer, "attribution", None) == "HydroViewer":
+        #         print(f"Removing layer: {layer.name}")
+        #         heatmapfig.remove_layer(layer)
         if len(heatmapfig.layers) > 3:
-            for layer in list(heatmapfig.layers):
-                if getattr(layer, "attribution", None) == "HydroViewer":
-                    print(f"Removing layer: {layer.name}")
-                    heatmapfig.remove_layer(layer)
+                    for layer in list(heatmapfig.layers):
+                        if getattr(layer, "attribution", None) == "HydroViewer":
+                            print(f"Removing layer: {layer.name}")
+                            heatmapfig.remove_layer(layer)
         # prev_layer = current_data_layer.get()
         # if prev_layer is not None and prev_layer in heatmapfig.layers:
         #     print(f"Removing layer: {prev_layer.name}")
