@@ -15,7 +15,6 @@ import hashlib
 import xarray as xr
 import requests
 import io
-import os
 from urllib.parse import urljoin
 
 #import shared
@@ -38,33 +37,6 @@ class RegionalTileServer:
     def __init__(self):
         self.pyramids = {}
         self.data_bounds = None
-        # Default session honors system proxy env vars.
-        self.http = requests.Session()
-        # Fallback session bypasses env proxies (helps on machines with stale proxy config).
-        self.http_no_proxy = requests.Session()
-        self.http_no_proxy.trust_env = False
-
-    def _build_candidate_urls(self, filename):
-        """Build remote URL candidates for a pyramid file."""
-        base_url = os.getenv("HYDROVIEWER_PYRAMID_BASE_URL", PYRAMID_DIR).rstrip("/") + "/"
-        relative_paths = [
-            f"refs/heads/main/get_ldas_probabilistic_output/subsampled/{filename}",
-            f"main/get_ldas_probabilistic_output/subsampled/{filename}",
-        ]
-        return [urljoin(base_url, rel) for rel in relative_paths]
-
-    def _try_load_local_pyramid(self, filename):
-        """Try loading a pyramid from local disk if HYDROVIEWER_PYRAMID_DIR is set."""
-        local_dir = os.getenv("HYDROVIEWER_PYRAMID_DIR")
-        if not local_dir:
-            return None
-
-        local_path = os.path.join(local_dir, filename)
-        if not os.path.exists(local_path):
-            return None
-
-        with open(local_path, "rb") as f:
-            return pickle.load(f)
     
     def load_pyramid(self, variable, profile=0):
         # """Load pyramid from disk"""
@@ -93,57 +65,25 @@ class RegionalTileServer:
             return self.pyramids[cache_key]
         
         filename = f"prob_2024_dec_tercile_probability_max_{variable}_lvl_{profile}_subsampled.pkl"
+        url = urljoin(PYRAMID_DIR, f"refs/heads/main/get_ldas_probabilistic_output/subsampled/{filename}")
 
-        # 1) Prefer local file when configured (offline-safe).
         try:
-            pyramid_data = self._try_load_local_pyramid(filename)
-            if pyramid_data is not None:
-                self.pyramids[cache_key] = pyramid_data
-                self.data_bounds = pyramid_data['data_bounds']
-                return pyramid_data
-        except Exception as e:
-            raise RuntimeError(f"Failed to load local pyramid '{filename}': {e}")
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            pyramid_data = pickle.load(io.BytesIO(response.content))
+            self.pyramids[cache_key] = pyramid_data
+            self.data_bounds = pyramid_data['data_bounds']
+            return pyramid_data
 
-        # 2) Try remote URL candidates with proxy/no-proxy fallback.
-        candidate_urls = self._build_candidate_urls(filename)
-        errors = []
-
-        for url in candidate_urls:
-            try:
-                response = self.http.get(url, timeout=30)
-                response.raise_for_status()
-                pyramid_data = pickle.load(io.BytesIO(response.content))
-                self.pyramids[cache_key] = pyramid_data
-                self.data_bounds = pyramid_data['data_bounds']
-                return pyramid_data
-            except requests.exceptions.ProxyError as e:
-                # Retry same URL once without system proxy env vars.
-                try:
-                    response = self.http_no_proxy.get(url, timeout=30)
-                    response.raise_for_status()
-                    pyramid_data = pickle.load(io.BytesIO(response.content))
-                    self.pyramids[cache_key] = pyramid_data
-                    self.data_bounds = pyramid_data['data_bounds']
-                    return pyramid_data
-                except Exception as retry_e:
-                    errors.append(f"{url} (proxy error: {e}; retry without proxy failed: {retry_e})")
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 404:
-                    errors.append(f"{url} (404 not found)")
-                    continue
-                errors.append(f"{url} (http error: {e})")
-            except Exception as e:
-                errors.append(f"{url} ({type(e).__name__}: {e})")
-
-        attempted = "\n".join(f"- {err}" for err in errors) if errors else "- none"
-        raise RuntimeError(
-            "Failed to load pyramid file.\n"
-            f"Variable={variable}, profile={profile}, file={filename}\n"
-            "Attempted locations:\n"
-            f"{attempted}\n"
-            "Hints: set HYDROVIEWER_PYRAMID_DIR for local .pkl files, or set "
-            "HYDROVIEWER_PYRAMID_BASE_URL for a custom backend mirror."
-        )
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise FileNotFoundError(
+                    f"Pyramid not found at remote URL: {url}\n"
+                    f"Ensure pyramid files are uploaded to the GitHub repository"
+                )
+            raise RuntimeError(f"Failed to fetch pyramid from {url}: {e}")
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Network error fetching pyramid from {url}: {e}")
     
     def tile_to_lonlat_bounds(self, zoom, x, y):
         """
@@ -606,8 +546,8 @@ if __name__ == '__main__':
     print("="*60)
     print("HydroViewer Pyramid Tile Server")
     print("="*60)
-    print("Starting on http://localhost:6000")
+    print("Starting on http://localhost:5000")
     print("Tiles: /tiles/{var}/{time}/{cat}/{z}/{x}/{y}.png")
     print("="*60)
     
-    app.run(host='0.0.0.0', port=6000, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
