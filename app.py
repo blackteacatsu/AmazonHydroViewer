@@ -11,7 +11,7 @@ from ipywidgets import HTML
 import requests
 
 # Shared local tile server URL
-TILE_SERVER_URL = "http://localhost:6000"
+TILE_SERVER_URL = "http://localhost:4000"
 
 # --- Setup page ui ---#
 
