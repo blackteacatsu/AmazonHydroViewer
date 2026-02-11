@@ -546,8 +546,8 @@ if __name__ == '__main__':
     print("="*60)
     print("HydroViewer Pyramid Tile Server")
     print("="*60)
-    print("Starting on http://localhost:5000")
+    print("Starting on http://localhost:6000")
     print("Tiles: /tiles/{var}/{time}/{cat}/{z}/{x}/{y}.png")
     print("="*60)
     
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=6000, debug=False, threaded=True)
