@@ -1,0 +1,496 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* Root variables - Exact from documentation site (Brutalist design) */
+:root {
+    --primary-color: #000000;
+    --background-color: #ffffff;
+    --accent-bg: #f5f5f5;
+    --text-color: #000000;
+    --border-color: #000000;
+    --ifm-spacing-horizontal: 1.5rem;
+    --ifm-spacing-vertical: 2rem;
+    --ifm-border-radius: 0px;
+    --ifm-border-width: 2px;
+    --ifm-navbar-height: 80px;
+    --ifm-font-family-base: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --ifm-font-family-monospace: 'IBM Plex Mono', monospace;
+
+    --ifm-line-height-base: 1.6;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    display: table;
+    margin: auto;
+}
+
+body {
+    background-color: var(--background-color);
+    font-family: var(--ifm-font-family-base);
+    height: 1024px;
+    width: 1650px;
+    vertical-align: middle;
+    color: var(--text-color);
+    line-height: var(--ifm-line-height-base);
+    font-size: var(--ifm-font-size-base);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography - Brutalist style with uppercase and heavy weights */
+h1 {
+    color: var(--text-color);
+    margin-top: 0;
+    font-size: 2.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin-left: 5px;
+    margin-bottom: 1rem;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+}
+
+h2 {
+    color: var(--text-color);
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+}
+
+h3 {
+    color: var(--text-color);
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+}
+
+h4 {
+    color: var(--text-color);
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+}
+
+p {
+    color: var(--text-color);
+    font-size: 25px;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    font-weight: 400;
+}
+
+.card_header {
+    color: var(--text-color);
+    font-size: 1.25rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin-top: 0;
+    margin-bottom: 0;
+    letter-spacing: -0.01em;
+}
+
+/* Header Styles - Brutalist design */
+.header {
+    background-color: var(--background-color);
+    border-bottom: var(--ifm-border-width) solid var(--border-color);
+    padding: 1.5rem var(--ifm-spacing-horizontal);
+    margin-bottom: 0;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+}
+
+.header img {
+    position: relative;
+    float: left;
+    height: 60px;
+    margin-right: var(--ifm-spacing-horizontal);
+    transition: transform 0.2s ease;
+}
+
+.header img:hover {
+    transform: translate(-2px, -2px);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--text-color);
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+}
+
+/* Button Styles - Brutalist design with sharp edges */
+.btn-primary {
+    background-color: var(--primary-color);
+    border: var(--ifm-border-width) solid var(--border-color);
+    color: var(--background-color);
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    border-radius: var(--ifm-border-radius);
+    text-decoration: none;
+    display: block;
+    transition: all 0.2s ease;
+    box-shadow: none;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    line-height: 1.5;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--border-color);
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--border-color);
+    color: var(--background-color);
+    text-decoration: none;
+}
+
+.btn-primary:active {
+    transform: translate(0, 0);
+    box-shadow: none;
+}
+
+/* Card Styles - Brutalist design with sharp edges */
+.card {
+    background: var(--background-color);
+    border: var(--ifm-border-width) solid var(--border-color);
+    border-radius: var(--ifm-border-radius);
+    box-shadow: none;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    margin-bottom: var(--ifm-spacing-vertical);
+}
+
+.card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--border-color);
+}
+
+.card-header {
+    background-color: var(--accent-bg);
+    border-bottom: var(--ifm-border-width) solid var(--border-color);
+    padding: 1rem var(--ifm-spacing-horizontal);
+    font-weight: 900;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    color: var(--text-color);
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+}
+
+.card-body {
+    padding: var(--ifm-spacing-horizontal);
+}
+
+/* Sidebar Styles - Brutalist design */
+.sidebar {
+    background-color: var(--accent-bg);
+    border-right: var(--ifm-border-width) solid var(--border-color);
+    padding: var(--ifm-spacing-vertical) var(--ifm-spacing-horizontal);
+    text-align: left;
+}
+
+.sidebar label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+    display: block;
+    letter-spacing: -0.01em;
+    text-align: left;
+}
+
+/* Form Elements - Brutalist style */
+.form-check-input { 
+    border: var(--ifm-border-width) solid var(--border-color);
+    border-radius: var(--ifm-border-radius);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    margin-right: 0.75rem;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--border-color);
+}
+
+.form-check-input:focus {
+    outline: none;
+    border-color: var(--border-color);
+    box-shadow: none;
+}
+
+.form-check-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-color);
+    margin-left: 0;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+/* Radio button group styling */
+.shiny-input-radiogroup {
+    text-align: left;
+}
+
+/* Gap between "Select variables below:" and first option */
+.shiny-input-radiogroup > label:first-child {
+    margin-bottom: 1.5rem !important;
+}
+
+.shiny-input-radiogroup .shiny-options-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-top: 1.5rem;
+}
+
+.shiny-input-radiogroup label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    max-width: 100%;
+    text-align: left;
+}
+
+.shiny-input-radiogroup .form-check {
+    text-align: left;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.form-select,
+.form-control,
+select,
+input[type="text"],
+input[type="number"] {
+    border: var(--ifm-border-width) solid var(--border-color);
+    border-radius: var(--ifm-border-radius);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.form-select:focus,
+.form-control:focus,
+select:focus,
+input[type="text"]:focus,
+input[type="number"]:focus {
+    outline: none;
+    border-color: var(--border-color);
+    box-shadow: none;
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--border-color);
+}
+
+.form-select:hover,
+.form-control:hover,
+select:hover,
+input:hover {
+    border-color: var(--border-color);
+}
+
+/* Ensure the card and plotly container fill available height */
+.plotly-center-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 900px;
+    overflow: hidden;
+}
+
+.plotly-center-container > * {
+    width: 100% !important;
+    margin-top: 0 !important;
+}
+
+.center-control-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 10px;
+}
+
+/* Slider customization - Brutalist style */
+input[type="range"] {
+    accent-color: var(--primary-color);
+    width: 100%;
+    height: 6px;
+    border-radius: var(--ifm-border-radius);
+    background: var(--border-color);
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--ifm-border-radius);
+    background: var(--primary-color);
+    border: var(--ifm-border-width) solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--border-color);
+}
+
+/* Text outputs - Brutalist badge style */
+.shiny-text-output {
+    color: var(--text-color);
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    padding: 0.75rem 1rem;
+    background-color: var(--accent-bg);
+    border: var(--ifm-border-width) solid var(--border-color);
+    border-radius: var(--ifm-border-radius);
+    text-align: center;
+}
+
+/* Modal styles - Brutalist design */
+.modal-content {
+    border-radius: var(--ifm-border-radius);
+    border: var(--ifm-border-width) solid var(--border-color);
+    box-shadow: 4px 4px 0 var(--border-color);
+}
+
+.modal-header {
+    background-color: var(--accent-bg);
+    border-bottom: var(--ifm-border-width) solid var(--border-color);
+    padding: var(--ifm-spacing-horizontal);
+}
+
+.modal-title {
+    color: var(--text-color);
+    font-weight: 900;
+    font-size: 1.25rem;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+}
+
+.modal-body {
+    padding: var(--ifm-spacing-horizontal);
+    color: var(--text-color);
+}
+
+.modal-footer {
+    border-top: var(--ifm-border-width) solid var(--border-color);
+    padding: 1rem var(--ifm-spacing-horizontal);
+    background-color: var(--accent-bg);
+}
+
+/* Link styles - Brutalist black links */
+a {
+    color: var(--primary-color);
+    text-decoration: underline;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+a:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+    transform: translate(-1px, -1px);
+    display: inline-block;
+}
+
+/* Layout spacing improvements */
+.layout-sidebar {
+    gap: var(--ifm-spacing-vertical);
+}
+
+.layout-columns {
+    gap: var(--ifm-spacing-horizontal);
+    margin-bottom: var(--ifm-spacing-vertical);
+}
+
+/* Spacing utilities */
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mb-4 { margin-bottom: 2rem; }
+
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mt-4 { margin-top: 2rem; }
+
+.p-1 { padding: 0.5rem; }
+.p-2 { padding: 1rem; }
+.p-3 { padding: 1.5rem; }
+.p-4 { padding: 2rem; }
+
+/* Code blocks - IBM Plex Mono */
+code, pre {
+    font-family: var(--ifm-font-family-monospace);
+    background-color: var(--accent-bg);
+    border: var(--ifm-border-width) solid var(--border-color);
+    border-radius: var(--ifm-border-radius);
+    padding: 0.2rem 0.4rem;
+}
+
+/* Mermaid diagram styling */
+.mermaid {
+    font-family: var(--ifm-font-family-base) !important;
+    font-size: var(--ifm-font-size-base) !important;
+}
+
+.mermaid text {
+    font-family: var(--ifm-font-family-base) !important;
+    font-size: 1rem !important;
+    fill: var(--text-color) !important;
+}
+
+.mermaid .node text,
+.mermaid .edgeLabel text {
+    font-size: 50px !important;
+    font-weight: 500 !important;
+}
+
+.mermaid .nodeLabel {
+    font-family: var(--ifm-font-family-base) !important;
+}
