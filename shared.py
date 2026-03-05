@@ -159,7 +159,7 @@ probabilistic_data_path = github_data_repo + 'main/get_ldas_probabilistic_output
 # pyramid_file = PYRAMID_DIR / f"prob_2024_dec_tercile_probability_max_{variable}_lvl_{profile}_subsampled.pkl"
 
 # general regional averaged forecast data path  @remote location
-raw_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_csv/zonal_stats_pfaf_'
+raw_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_forecast_csv/zonal_forecast_pfaf_'
 
 climatology_data_path = github_data_repo + 'refs/heads/main/get_zonal_averages_climatology_csv/zonal_climatology_pfaf_'
 
