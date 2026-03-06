@@ -68,7 +68,7 @@ app_ui = ui.page_fluid(
                         "Zonal statistics \N{INBOX TRAY}")
                 ),
                 output_widget("boxplot"),
-                full_screen=True,
+                full_screen=False,
             ),
         ),
         ui.layout_columns(
@@ -328,7 +328,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         forecast_layer = TileLayer(
                 url=tile_url,
                 name=f"{variable} - Category {category}",
-                opacity=0.6,
+                opacity=0.8,
                 attribution='HydroViewer',
                 min_native_zoom=4,
                 max_native_zoom=9,
@@ -357,7 +357,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             center=[-7, -66],
             zoom=4.5,
             scroll_wheel_zoom=True,
-            basemap = basemap_to_tiles(basemaps.Stadia.AlidadeSmooth, "CartoDB Positron")
+            max_zoom = 9,
+            basemap = basemap_to_tiles(basemaps.Stadia.AlidadeSmoothDark, "CartoDB Positron") #Stadia.AlidadeSmooth
         )
 
         layercontrol = LayersControl(position='bottomright')
