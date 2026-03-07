@@ -67,8 +67,8 @@ class RegionalTileServer:
         stem = self._stem(variable)
         return urljoin(PYRAMID_DIR, f"{stem}/")
     
-    def load_pyramid_meta(self, variable, profile=0):
-        """Load pyramid metadata from remote"""
+    def load_pyramid_meta(self, variable):
+        """Load pyramid metadata from remote."""
         cache_key = self._stem(variable)
         if cache_key in self.pyramids:
             return self.pyramids[cache_key]["meta"]
@@ -92,12 +92,12 @@ class RegionalTileServer:
         }
         return meta
     
-    def load_pyramid_bundle(self, variable, profile=0):
+    def load_pyramid_bundle(self, variable):
         """Load the single pyramid npz bundle from remote and cache it."""
         cache_key = self._stem(variable)
 
         # ensure meta exists
-        meta = self.load_pyramid_meta(variable, profile)
+        meta = self.load_pyramid_meta(variable)
         entry = self.pyramids[cache_key]
 
         if entry["bundle"] is not None:
@@ -137,18 +137,13 @@ class RegionalTileServer:
         # except requests.exceptions.RequestException as e:
         #     raise RuntimeError(f"Network error fetching pyramid from {url}: {e}")
     
-    def get_level(self, variable: str, profile: int = 0, z: int = None) -> xr.DataArray:
+    def get_level(self, variable: str, z: int) -> xr.DataArray:
         """Fetch and cache one zoom level as an in-memory xarray.DataArray."""
-        # Backward compatibility: allow get_level(variable, z)
-        if z is None:
-            z = profile
-            profile = 0
-
         cache_key = self._stem(variable)
 
         # ensure meta loaded
-        meta = self.load_pyramid_meta(variable, profile)
-        bundle = self.load_pyramid_bundle(variable, profile)
+        meta = self.load_pyramid_meta(variable)
+        bundle = self.load_pyramid_bundle(variable)
 
         # normalize z to int
         z = int(z)
@@ -446,7 +441,6 @@ def get_tile(variable, time_idx, category, z, x, y):
     Query params:
     - colormap: matplotlib colormap name
     - vmin, vmax: color scale range
-    - profile: depth profile (0-3)
     - cache: enable/disable caching
     """
     colormap = request.args.get('colormap', 'Reds')
@@ -483,11 +477,11 @@ def get_tile(variable, time_idx, category, z, x, y):
     try:
         # Resolve nearest available zoom in NPZ metadata and load that level
         z_actual = tile_server.get_best_zoom(variable, z)
-        data = tile_server.get_level(variable, profile, z_actual)
+        data = tile_server.get_level(variable, z_actual)
 
         # Select time and category
         data_slice = data.isel(time=time_idx, category=category)
-        profile_dim = tile_server.load_pyramid_meta(variable, profile).get("profile_dim")
+        profile_dim = tile_server.load_pyramid_meta(variable).get("profile_dim")
         if profile_dim and profile_dim in data_slice.dims:
             data_slice = data_slice.isel({profile_dim: profile})
 
@@ -563,7 +557,7 @@ def pyramid_info(variable):
     profile = request.args.get('profile', 0, type=int)
 
     try:
-        meta = tile_server.load_pyramid_meta(variable, profile)
+        meta = tile_server.load_pyramid_meta(variable)
         zoom_levels = sorted(int(z) for z in meta.get("zooms", []))
 
         # Convert numpy types to native Python types for JSON serialization
@@ -590,7 +584,7 @@ def pyramid_info(variable):
         }
 
         for zoom in zoom_levels:
-            data = tile_server.get_level(variable, profile, zoom)
+            data = tile_server.get_level(variable, zoom)
             info['levels'][str(zoom)] = {
                 'shape': [int(len(data.lat)), int(len(data.lon))]
             }
@@ -603,18 +597,18 @@ def pyramid_info(variable):
 
 @app.route('/pyramid/time/<variable>')
 def pyramid_time(variable):
-    """Get available time coordinates for a variable/profile."""
+    """Get available time coordinates for a variable."""
     profile = request.args.get('profile', 0, type=int)
 
     try:
-        meta = tile_server.load_pyramid_meta(variable, profile)
+        meta = tile_server.load_pyramid_meta(variable)
         zoom_levels = sorted(int(z) for z in meta.get("zooms", []))
         if not zoom_levels:
             raise KeyError("No zoom levels found in metadata 'files'.")
 
         # Use any zoom level; time coordinate is shared across levels.
         sample_zoom = zoom_levels[0]
-        time_values = tile_server.get_level(variable, profile, sample_zoom).time.values
+        time_values = tile_server.get_level(variable, sample_zoom).time.values
 
         time_iso = []
         for t in time_values:
@@ -647,6 +641,9 @@ def save_test_tile(variable, time_idx, category, z, x, y):
         z_actual = tile_server.get_best_zoom(variable, z)
         data = tile_server.get_level(variable, z_actual)
         data_slice = data.isel(time=time_idx, category=category)
+        profile_dim = tile_server.load_pyramid_meta(variable).get("profile_dim")
+        if profile_dim and profile_dim in data_slice.dims:
+            data_slice = data_slice.isel({profile_dim: profile})
 
         grids = tile_server.get_tile_lonlat_grids(z, x, y, TILE_SIZE, mode=mode)
 

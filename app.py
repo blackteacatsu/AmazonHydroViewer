@@ -112,8 +112,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             variable = input.var_selector()
             if not variable:
                 return None
-
             profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
+
             res = requests.get(
                 f"{TILE_SERVER_URL}/pyramid/time/{variable}",
                 params={"profile": profile},
@@ -205,7 +205,7 @@ def server(input: Inputs, output: Outputs, session: Session):
     #        colormap = shared.colorscales.get(input.forecast_category_selector())
 
 
-    #     tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&vmin={vmin}&vmax={vmax}"
+    #     tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&mode=global&vmin={vmin}&vmax={vmax}"
     #     return tile_url, variable, category
     
     # @render_widget
@@ -303,7 +303,6 @@ def server(input: Inputs, output: Outputs, session: Session):
             return None
         category = int(input.forecast_category_selector())
         profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
-
         try:
             time_idx = input.time_slider()
             if time_idx is None:
@@ -510,5 +509,3 @@ def server(input: Inputs, output: Outputs, session: Session):
 
 
 app = App(app_ui, server, static_assets=Path(__file__).parent / "www")
-
-
