@@ -59,22 +59,22 @@ class RegionalTileServer:
         init_date = index["initialization_date"]
         return f"{init_date}_tercile_prob_max_{variable}" 
     
-    def _base_dir_url(self, variable: str, profile: int) -> str:
+    def _base_dir_url(self, variable: str) -> str:
         """
         output url should looks like: 
         '~/get_ldas_probabilistic_output/subsampled/{date}_tercile_probability_max_{var}/'
         """
-        stem = self._stem(variable, profile)
+        stem = self._stem(variable)
         return urljoin(PYRAMID_DIR, f"{stem}/")
     
     def load_pyramid_meta(self, variable, profile=0):
         """Load pyramid metadata from remote"""
-        cache_key = self._stem(variable, profile)
+        cache_key = self._stem(variable)
         if cache_key in self.pyramids:
             return self.pyramids[cache_key]["meta"]
         
-        base = self._base_dir_url(variable, profile)
-        meta_url = urljoin(base, f"{self._stem(variable, profile)}_meta.json")
+        base = self._base_dir_url(variable)
+        meta_url = urljoin(base, f"{cache_key}_meta.json")
         
         r = requests.get(meta_url, timeout=30)
         if r.status_code == 404:
@@ -94,7 +94,7 @@ class RegionalTileServer:
     
     def load_pyramid_bundle(self, variable, profile=0):
         """Load the single pyramid npz bundle from remote and cache it."""
-        cache_key = self._stem(variable, profile)
+        cache_key = self._stem(variable)
 
         # ensure meta exists
         meta = self.load_pyramid_meta(variable, profile)
@@ -103,12 +103,11 @@ class RegionalTileServer:
         if entry["bundle"] is not None:
             return entry["bundle"]
 
-        base = self._base_dir_url(variable, profile)
+        base = self._base_dir_url(variable)
 
         if "files" in meta and isinstance(meta["files"], str):
             # backward compatibility with your current metadata
             npz_url = urljoin(base, meta["files"])
-            print(npz_url)
         else:
             raise KeyError("Metadata must contain 'file' or string 'files'")
 
@@ -138,15 +137,19 @@ class RegionalTileServer:
         # except requests.exceptions.RequestException as e:
         #     raise RuntimeError(f"Network error fetching pyramid from {url}: {e}")
     
-    def get_level(self, variable: str, profile: int, z: int) -> xr.DataArray:
+    def get_level(self, variable: str, profile: int = 0, z: int = None) -> xr.DataArray:
         """Fetch and cache one zoom level as an in-memory xarray.DataArray."""
-        cache_key = self._stem(variable, profile)
+        # Backward compatibility: allow get_level(variable, z)
+        if z is None:
+            z = profile
+            profile = 0
+
+        cache_key = self._stem(variable)
 
         # ensure meta loaded
         meta = self.load_pyramid_meta(variable, profile)
         bundle = self.load_pyramid_bundle(variable, profile)
 
-        print(bundle)
         # normalize z to int
         z = int(z)
 
@@ -164,7 +167,6 @@ class RegionalTileServer:
         lon = bundle[f"z{z}_lon"]
         time = bundle["time"]
         category = bundle["category"]
-
         profile_dim = meta.get('profile_dim')
 
         if profile_dim is None:
@@ -182,7 +184,7 @@ class RegionalTileServer:
             else:
                 raise ValueError(
                     "Unexpected NPZ shape for "
-                    f"{variable} lvl {profile} z={z}: values={actual_shape}, "
+                    f"{variable} z={z}: values={actual_shape}, "
                     f"expected (time,category,lat,lon)={expected_shape_tc} or "
                     f"(category,time,lat,lon)={expected_shape_ct}"
                 )
@@ -198,17 +200,22 @@ class RegionalTileServer:
             profile_depth = bundle['profile_depth']
 
             # expected format: (time, category, profile, lat, lon)
-            expected_shape = ()
+            expected_shape_tcp = (len(time), len(category), len(profile_depth), len(lat), len(lon))
+            expected_shape_ctp = (len(category), len(time), len(profile_depth), len(lat), len(lon))
             actual_shape = tuple(values.shape)
 
-            if actual_shape != expected_shape:
+            if actual_shape == expected_shape_tcp:
+                values_tcp = values
+            elif actual_shape == expected_shape_ctp:
+                values_tcp = np.transpose(values, (1, 0, 2, 3, 4))
+            else:
                 raise ValueError(
                     f"Unexpected profiled NPZ shape for {variable} - Z={z}: "
-                    f"{actual_shape}, expected {expected_shape}"
+                    f"{actual_shape}, expected {expected_shape_tcp} or {expected_shape_ctp}"
                 )
             
             da = xr.DataArray(
-                values_tc,
+                values_tcp,
                 coords={
                     "time": time, 
                     "category": category, 
@@ -220,12 +227,11 @@ class RegionalTileServer:
             )
 
         levels[z] = da
-        print(da)
         return da
 
-    def get_best_zoom(self, variable: str, profile: int, requested_zoom: int) -> int:
+    def get_best_zoom(self, variable: str, requested_zoom: int) -> int:
         """Pick nearest available zoom from metadata."""
-        meta = self.load_pyramid_meta(variable, profile)
+        meta = self.load_pyramid_meta(variable)
         available = sorted(int(z) for z in meta.get("zooms", []))
         if not available:
             raise KeyError("No zoom levels found in metadata 'files'.")
@@ -476,11 +482,14 @@ def get_tile(variable, time_idx, category, z, x, y):
 
     try:
         # Resolve nearest available zoom in NPZ metadata and load that level
-        z_actual = tile_server.get_best_zoom(variable, profile, z)
+        z_actual = tile_server.get_best_zoom(variable, z)
         data = tile_server.get_level(variable, profile, z_actual)
 
         # Select time and category
         data_slice = data.isel(time=time_idx, category=category)
+        profile_dim = tile_server.load_pyramid_meta(variable, profile).get("profile_dim")
+        if profile_dim and profile_dim in data_slice.dims:
+            data_slice = data_slice.isel({profile_dim: profile})
 
         # Get tile coordinate grids
         grids = tile_server.get_tile_lonlat_grids(z, x, y, TILE_SIZE, mode=mode)
@@ -635,8 +644,8 @@ def save_test_tile(variable, time_idx, category, z, x, y):
     mode = request.args.get('mode', 'global')
 
     try:
-        z_actual = tile_server.get_best_zoom(variable, profile, z)
-        data = tile_server.get_level(variable, profile, z_actual)
+        z_actual = tile_server.get_best_zoom(variable, z)
+        data = tile_server.get_level(variable, z_actual)
         data_slice = data.isel(time=time_idx, category=category)
 
         grids = tile_server.get_tile_lonlat_grids(z, x, y, TILE_SIZE, mode=mode)
