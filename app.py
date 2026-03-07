@@ -322,8 +322,8 @@ def server(input: Inputs, output: Outputs, session: Session):
         tile_url = f'{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&vmin={vmin}&vmax={vmax}'
 
         # tile_url, variable, category = build_tile_url()
-        # print(f"{variable, category}")
-        # print(tile_url)
+        print(f"{variable, category}")
+        print(tile_url)
 
         forecast_layer = TileLayer(
                 url=tile_url,

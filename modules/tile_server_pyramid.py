@@ -19,17 +19,17 @@ from urllib.parse import urljoin
 
 #import shared
 #from pathlib import Path
-
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
+# IMPORTANT: PYRAMID_DIR should end with ".../main/" (not refs/heads)
 TILE_SIZE = 256
-PYRAMID_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/main/'
+BACKEND_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/main/'
+PYRAMID_DIR = BACKEND_DIR + 'get_ldas_probabilistic_output/subsampled/'
 PYRAMID_CACHE = {}  # Cache loaded pyramids
 TILE_IMAGE_CACHE = {}  # Cache rendered tiles
 API_VERSION = "2026-02-08"
-
 
 class RegionalTileServer:
     """Serves tiles from pyramids using regional coordinates"""
@@ -39,42 +39,37 @@ class RegionalTileServer:
         # pyramids[cache_key] = {"meta": {...}, "levels": {z: xr.DataArray}}
         self.pyramids = {}
         self.data_bounds = None
+        self._index_cache = None
+
+    def load_index(self):
+        if self._index_cache is not None:
+            return self._index_cache
+        index_url = urljoin(PYRAMID_DIR, "index.json")
+        r = requests.get(index_url, timeout=10)
+        if r.status_code == 404:
+            raise FileNotFoundError(f"Index not found at: {index_url}")
+        r.raise_for_status()
+
+        self._index_cache = r.json()
+        return self._index_cache
     
-    def _stem(self, variable: str, profile: int) -> str:
-            # match your pipeline naming
-            return f"prob_2024_dec_tercile_probability_max_{variable}_lvl_{profile}"
+    def _stem(self, variable: str) -> str:
+        # match pipeline naming
+        index = self.load_index()
+        init_date = index["initialization_date"]
+        return f"{init_date}_tercile_prob_max_{variable}" 
     
     def _base_dir_url(self, variable: str, profile: int) -> str:
-        # IMPORTANT: PYRAMID_DIR should end with ".../main/" (not refs/heads)
-        # Example:
-        # PYRAMID_DIR = "https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/main/"
+        """
+        output url should looks like: 
+        '~/get_ldas_probabilistic_output/subsampled/{date}_tercile_probability_max_{var}/'
+        """
         stem = self._stem(variable, profile)
-        return urljoin(PYRAMID_DIR, f"get_ldas_probabilistic_output/subsampled/{stem}/")
+        return urljoin(PYRAMID_DIR, f"{stem}/")
     
-    def load_pyramid(self, variable, profile=0):
-        # """Load pyramid from disk"""
-        # cache_key = f"{variable}_lvl_{profile}"
-        
-        # if cache_key in self.pyramids:
-        #     return self.pyramids[cache_key]
-        
-        # if not pyramid_file.exists():
-        #     raise FileNotFoundError(f"Pyramid not found: {pyramid_file}")
-        
-        # with open(pyramid_file, 'rb') as f:
-        #     pyramid_data = pickle.load(f)
-        
-        # self.pyramids[cache_key] = pyramid_data
-        # self.data_bounds = pyramid_data['data_bounds']
-        
-        # print("="*60)        
-        # print(f"Loaded pyramid: {cache_key}, \n"
-        #       f"zoom levels: {list(pyramid_data['pyramid'].keys())}, \n"
-        #       f"bounds: {pyramid_data['data_bounds']}" )
-        # print("="*60)
-
-        """Load pyramid from remote"""
-        cache_key = f"{variable}_lvl_{profile}"
+    def load_pyramid_meta(self, variable, profile=0):
+        """Load pyramid metadata from remote"""
+        cache_key = self._stem(variable, profile)
         if cache_key in self.pyramids:
             return self.pyramids[cache_key]["meta"]
         
@@ -89,10 +84,41 @@ class RegionalTileServer:
         meta = r.json()
         self.data_bounds = meta.get("data_bounds")
 
-        self.pyramids[cache_key] = {"meta": meta, "levels": {}}
+        self.pyramids[cache_key] = {
+            "meta": meta,
+            "bundle": None,
+            "levels": {},
+
+        }
         return meta
-        # filename = f"prob_2024_dec_tercile_probability_max_{variable}_lvl_{profile}_subsampled.pkl"
-        # url = urljoin(PYRAMID_DIR, f"refs/heads/main/get_ldas_probabilistic_output/subsampled/{filename}")
+    
+    def load_pyramid_bundle(self, variable, profile=0):
+        """Load the single pyramid npz bundle from remote and cache it."""
+        cache_key = self._stem(variable, profile)
+
+        # ensure meta exists
+        meta = self.load_pyramid_meta(variable, profile)
+        entry = self.pyramids[cache_key]
+
+        if entry["bundle"] is not None:
+            return entry["bundle"]
+
+        base = self._base_dir_url(variable, profile)
+
+        if "files" in meta and isinstance(meta["files"], str):
+            # backward compatibility with your current metadata
+            npz_url = urljoin(base, meta["files"])
+            print(npz_url)
+        else:
+            raise KeyError("Metadata must contain 'file' or string 'files'")
+
+        r = requests.get(npz_url, timeout=60)
+        if r.status_code == 404:
+            raise FileNotFoundError(f"Pyramid bundle not found at: {npz_url}")
+        r.raise_for_status()
+
+        entry["bundle"] = np.load(BytesIO(r.content), allow_pickle=False)
+        return entry["bundle"]
 
         # try:
         #     response = requests.get(url, timeout=30)
@@ -114,11 +140,13 @@ class RegionalTileServer:
     
     def get_level(self, variable: str, profile: int, z: int) -> xr.DataArray:
         """Fetch and cache one zoom level as an in-memory xarray.DataArray."""
-        cache_key = f"{variable}_lvl_{profile}"
+        cache_key = self._stem(variable, profile)
 
         # ensure meta loaded
-        meta = self.load_pyramid(variable, profile)
+        meta = self.load_pyramid_meta(variable, profile)
+        bundle = self.load_pyramid_bundle(variable, profile)
 
+        print(bundle)
         # normalize z to int
         z = int(z)
 
@@ -126,62 +154,79 @@ class RegionalTileServer:
         levels = self.pyramids[cache_key]["levels"]
         if z in levels:
             return levels[z]
+        
+        available = [int(v) for v in meta.get('zooms', [])]
+        if z not in available:
+            raise KeyError(f'Zoom {z} not in available. Available: {available}')
+        
+        values = bundle[f"z{z}_values"]
+        lat = bundle[f"z{z}_lat"]
+        lon = bundle[f"z{z}_lon"]
+        time = bundle["time"]
+        category = bundle["category"]
 
-        # figure out the filename from meta
-        files = meta.get("files", {})
-        z_key = str(z)
-        if z_key not in files:
-            raise KeyError(f"Zoom {z} not available. Available: {sorted(map(int, files.keys()))}")
+        profile_dim = meta.get('profile_dim')
 
-        base = self._base_dir_url(variable, profile)
-        npz_url = urljoin(base, files[z_key])
+        if profile_dim is None:
+            # NPZ level files may store the first two axes as either
+            # (time, category, lat, lon) or (category, time, lat, lon).
+            # Normalize to (time, category, lat, lon) for downstream code.
+            expected_shape_tc = (len(time), len(category), len(lat), len(lon))
+            expected_shape_ct = (len(category), len(time), len(lat), len(lon))
+            actual_shape = tuple(values.shape)
 
-        r = requests.get(npz_url, timeout=30)
-        if r.status_code == 404:
-            raise FileNotFoundError(f"Zoom file not found at: {npz_url}")
-        r.raise_for_status()
+            if actual_shape == expected_shape_tc:
+                values_tc = values
+            elif actual_shape == expected_shape_ct:
+                values_tc = np.transpose(values, (1, 0, 2, 3))
+            else:
+                raise ValueError(
+                    "Unexpected NPZ shape for "
+                    f"{variable} lvl {profile} z={z}: values={actual_shape}, "
+                    f"expected (time,category,lat,lon)={expected_shape_tc} or "
+                    f"(category,time,lat,lon)={expected_shape_ct}"
+                )
 
-        # load npz from bytes
-        with np.load(BytesIO(r.content), allow_pickle=False) as f:
-            values = f["values"]
-            lat = f["lat"]
-            lon = f["lon"]
-            time = f["time"]
-            category = f["category"]
-
-        # NPZ level files may store the first two axes as either
-        # (time, category, lat, lon) or (category, time, lat, lon).
-        # Normalize to (time, category, lat, lon) for downstream code.
-        expected_shape_tc = (len(time), len(category), len(lat), len(lon))
-        expected_shape_ct = (len(category), len(time), len(lat), len(lon))
-        actual_shape = tuple(values.shape)
-
-        if actual_shape == expected_shape_tc:
-            values_tc = values
-        elif actual_shape == expected_shape_ct:
-            values_tc = np.transpose(values, (1, 0, 2, 3))
+            da = xr.DataArray(
+                values_tc,
+                coords={"time": time, "category": category, "lat": lat, "lon": lon},
+                dims=("time", "category", "lat", "lon"),
+                name=f"{variable}"
+            )
+        
         else:
-            raise ValueError(
-                "Unexpected NPZ shape for "
-                f"{variable} lvl {profile} z={z}: values={actual_shape}, "
-                f"expected (time,category,lat,lon)={expected_shape_tc} or "
-                f"(category,time,lat,lon)={expected_shape_ct}"
+            profile_depth = bundle['profile_depth']
+
+            # expected format: (time, category, profile, lat, lon)
+            expected_shape = ()
+            actual_shape = tuple(values.shape)
+
+            if actual_shape != expected_shape:
+                raise ValueError(
+                    f"Unexpected profiled NPZ shape for {variable} - Z={z}: "
+                    f"{actual_shape}, expected {expected_shape}"
+                )
+            
+            da = xr.DataArray(
+                values_tc,
+                coords={
+                    "time": time, 
+                    "category": category, 
+                    profile_dim : profile_depth,
+                    "lat": lat, "lon": lon
+                },
+                dims=("time", "category", profile_dim, "lat", "lon"),
+                name=f"{variable}"
             )
 
-        da = xr.DataArray(
-            values_tc,
-            coords={"time": time, "category": category, "lat": lat, "lon": lon},
-            dims=("time", "category", "lat", "lon"),
-            name=f"{variable}"
-        )
-
         levels[z] = da
+        print(da)
         return da
 
     def get_best_zoom(self, variable: str, profile: int, requested_zoom: int) -> int:
         """Pick nearest available zoom from metadata."""
-        meta = self.load_pyramid(variable, profile)
-        available = sorted(int(k) for k in meta.get("files", {}).keys())
+        meta = self.load_pyramid_meta(variable, profile)
+        available = sorted(int(z) for z in meta.get("zooms", []))
         if not available:
             raise KeyError("No zoom levels found in metadata 'files'.")
         if requested_zoom in available:
@@ -383,7 +428,6 @@ class RegionalTileServer:
 
         return img_p
 
-
 # Global server instance
 tile_server = RegionalTileServer()
 
@@ -510,8 +554,8 @@ def pyramid_info(variable):
     profile = request.args.get('profile', 0, type=int)
 
     try:
-        meta = tile_server.load_pyramid(variable, profile)
-        zoom_levels = sorted(int(k) for k in meta.get("files", {}).keys())
+        meta = tile_server.load_pyramid_meta(variable, profile)
+        zoom_levels = sorted(int(z) for z in meta.get("zooms", []))
 
         # Convert numpy types to native Python types for JSON serialization
         def convert_to_native(obj):
@@ -532,7 +576,7 @@ def pyramid_info(variable):
             'profile': int(profile),
             'zoom_levels': zoom_levels,
             'data_bounds': convert_to_native(meta.get('data_bounds')),
-            'files': convert_to_native(meta.get('files', {})),
+            'files': convert_to_native(meta.get('files', meta.get('files'))),
             'levels': {}
         }
 
@@ -554,8 +598,8 @@ def pyramid_time(variable):
     profile = request.args.get('profile', 0, type=int)
 
     try:
-        meta = tile_server.load_pyramid(variable, profile)
-        zoom_levels = sorted(int(k) for k in meta.get("files", {}).keys())
+        meta = tile_server.load_pyramid_meta(variable, profile)
+        zoom_levels = sorted(int(z) for z in meta.get("zooms", []))
         if not zoom_levels:
             raise KeyError("No zoom levels found in metadata 'files'.")
 
@@ -640,4 +684,4 @@ if __name__ == '__main__':
     print("Tiles: /tiles/{var}/{time}/{cat}/{z}/{x}/{y}.png")
     print("="*60)
     
-    app.run(host='0.0.0.0', port=4000, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=4000, debug=True, threaded=True)
