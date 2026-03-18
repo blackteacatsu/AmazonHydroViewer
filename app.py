@@ -11,8 +11,8 @@ from ipywidgets import HTML
 import requests
 
 # Shared local tile server URL
-TILE_SERVER_URL = "http://localhost:4000"
-
+# TILE_SERVER_URL = "http://localhost:4000"
+TILE_SERVER_URL = "https://amazonhydroviewer.onrender.com"
 # --- Setup page ui ---#
 
 # Build <head> contents
