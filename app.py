@@ -38,7 +38,7 @@ page_header = ui.tags.div(
             href="https://pages.jh.edu/bzaitch1/",
         ),
     ),
-    ui.tags.h1(shared.web_app_title),
+    ui.tags.h1('Hydrometeorology of The Amazon Basin'),
     class_="header",
 )
 
@@ -166,134 +166,6 @@ def server(input: Inputs, output: Outputs, session: Session):
             return f"Currently at {interface.format_date(time[input.time_slider()])}"
         except Exception:
             return "No dataset loaded or time variable missing."
-        
-    # Build the heatmap figure & register the heatmap figure as a widget
-    # heatmapfig, polygon_layer = leaflet_map.create_hydrobasin_map()
-    #@reactive.calc
-    # @reactive.event(
-    #     input.var_selector,
-    #     input.forecast_category_selector,
-    #     input.depth_selector,
-    #     input.time_slider
-    # )
-    # def build_tile_url():
-    #     """Build tile URL from current inputs"""
-    #     variable = input.var_selector()
-    #     if not variable:
-    #         return None
-    #     category = int(input.forecast_category_selector())
-    #     profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
-
-    #     try:
-    #         time_idx = input.time_slider()
-    #         if time_idx is None:
-    #             return None
-    #     except Exception:
-    #         return None
-
-    #     vmin = 40
-    #     vmax = 100
-    #     if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
-    #         colormap = shared.colorscales_temp.get(input.forecast_category_selector())
-    #         # if input.forecast_category_selector() == '0':
-    #         #     colormap = 'Blues'
-    #         # if input.forecast_category_selector() == '1':
-    #         #     colormap = 'Greys'
-    #         # if input.forecast_category_selector() == '2':
-    #         #     colormap = 'Reds'
-    #     else:
-    #        colormap = shared.colorscales.get(input.forecast_category_selector())
-
-
-    #     tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&mode=global&vmin={vmin}&vmax={vmax}"
-    #     return tile_url, variable, category
-    
-    # @render_widget
-    # def heatmap():
-    #     #voyager = basemap_to_tiles(basemaps.CartoDB.Voyager, "CartoDB Voyager")
-    #     #positron = basemap_to_tiles(basemaps.CartoDB.Positron, "CartoDB Positron")
-
-    #     polygon_layer = GeoJSON(
-    #         data = geojson_data,
-    #         style = {
-    #            'color': 'grey',
-    #             'weight': 0.6,
-    #             'fillOpacity': 0,
-    #             'opacity': 1
-    #         },
-    #         hover_style = {"color" : "white"},
-    #         name = 'HydroBasins @lvl 5'
-
-    #     )
-        
-    #     m = Map(
-    #         center=[-7, -66],
-    #         zoom=4.5,
-    #         scroll_wheel_zoom=True,
-    #         #layers=(polygon_layer),
-    #         basemap = basemap_to_tiles(basemaps.CartoDB.Positron, "CartoDB Positron")
-    #     )
-
-    #     # GeoJSON(
-    #     # data=geojson_data,
-    #     # style={
-    #     #     'color': 'grey',
-    #     #     'weight': 0.6,
-    #     #     'fillOpacity': 0,
-    #     #     'opacity': 1
-    #     # },
-    #     # hover_style={
-    #     #     'color': 'grey',
-    #     #     'weight': 0,
-    #     #     'fillOpacity': 0.4
-    #     # },
-    #     # name='HydroBasins @lvl 5'
-    #     # )
-
-    #     m.add_layer(polygon_layer)
-        
-    #     print(f'Map Widget layer updated: # of layers currently loaded is {len(m.layers)}')
-    #     for layer in m.layers:
-    #         print(f'  - {layer.name}')
-
-    #     # @reactive.effect
-    #     # @reactive.event(build_tile_url)
-    #     # def update_heatmap_figure():
-    #     #     """Update tile layer when tile URL changes"""
-    #     #     # Clear cache first to ensure fresh tiles
-    #     #     try:
-    #     #         requests.get(f"{TILE_SERVER_URL}/cache/clear")
-    #     #         print("✓ Cache cleared")
-    #     #     except:
-    #     #         print("⚠ Could not clear cache")
-        
-    #     #     result = build_tile_url()
-    #     #     if result is None:
-    #     #         return
-    #     #     tile_url, variable, category = result
-    #     #     if len(m.layers) > 3:
-    #     #                 for layer in list(m.layers):
-    #     #                     if getattr(layer, "attribution", None) == "HydroViewer":
-    #     #                         print(f"Removing layer: {layer.name}")
-    #     #                         m.remove_layer(layer)
-
-    #     #     print(f'Attempt to request: {tile_url}')
-
-    #     #     # Create and add new layer
-    #     #     forecast_layer = TileLayer(
-    #     #         url=tile_url,
-    #     #         name=f"{variable} - Category {category}",
-    #     #         opacity=0.8,
-    #     #         attribution='HydroViewer',
-    #     #         min_native_zoom=4,
-    #     #         max_native_zoom=9,
-    #     #         tms=True,
-    #     #     )
-    #     #     m.add_layer(forecast_layer)
-        
-    #     layercontrol = LayersControl(position="topright")
-    #     m.add_control(layercontrol)
-    #     return m
     
     @render_widget
     def heatmap():
@@ -310,15 +182,16 @@ def server(input: Inputs, output: Outputs, session: Session):
         except Exception:
             return None
 
-        vmin = 40
-        vmax = 100
         if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
             colormap = shared.colorscales_temp.get(input.forecast_category_selector())
 
         else:
            colormap = shared.colorscales.get(input.forecast_category_selector())
 
-        tile_url = f'{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&vmin={vmin}&vmax={vmax}'
+        tile_url = (f'{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/'
+                    f'{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}'
+                    f'&mode=global&vmin=40&vmax=100'
+        )
 
         # tile_url, variable, category = build_tile_url()
         print(f"{variable, category}")
@@ -354,10 +227,11 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         m = Map(
             center=[-7, -66],
-            zoom=4.5,
+            zoom=4,
             scroll_wheel_zoom=True,
             max_zoom = 9,
-            basemap = basemap_to_tiles(basemaps.Stadia.AlidadeSmoothDark, "CartoDB Positron") #Stadia.AlidadeSmooth
+            basemap = basemap_to_tiles(basemaps.Stadia.AlidadeSmoothDark, 
+                                       "CartoDB Positron") #Stadia.AlidadeSmooth
         )
 
         layercontrol = LayersControl(position='bottomright')
@@ -423,9 +297,9 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         try:
             zonal_stats_tab = pd.read_csv(
-                shared.raw_data_path + polygon() + ".csv")
+                shared.ZONAL_FORECAST_PATH + polygon() + ".csv")
             zonal_climatology_tab = pd.read_csv(
-                shared.climatology_data_path + polygon() + ".csv"
+                shared.ZONAL_CLIM_PATH + polygon() + ".csv"
             )
         except Exception as e:
             ensemblebox.update_layout(
@@ -486,9 +360,9 @@ def server(input: Inputs, output: Outputs, session: Session):
         )
 
         # Apply Brutalist theme with custom title and axis labels
-        var_name = shared.list_of_variables.get(input.var_selector()).upper()
-        var_unit = shared.all_variable_units.get(input.var_selector())
-        depth_label = shared.list_of_profiles.get(int(input.depth_selector()))
+        var_name = shared.CLIM_VAR_META.get(input.var_selector())['long_name'].upper()
+        var_unit = shared.CLIM_VAR_META.get(input.var_selector())['unit']
+        depth_label = shared.SOIL_VAR_PROFILE.get(int(input.depth_selector()))
 
         ensemblebox.update_layout(
             **plotly_theme.get_brutalist_layout(
