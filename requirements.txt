@@ -13,3 +13,4 @@ pandas
 ipyleaflet>=0.18.0
 ipywidgets>=8.1.0
 flask==3.0.3
+flask_cors==4.0.0
