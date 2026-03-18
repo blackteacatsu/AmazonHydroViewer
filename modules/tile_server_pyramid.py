@@ -714,4 +714,4 @@ if __name__ == '__main__':
     print("Tiles: /tiles/{var}/{time}/{cat}/{z}/{x}/{y}.png")
     print("="*60)
     
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=False)
