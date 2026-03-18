@@ -29,6 +29,8 @@ PYRAMID_DIR = BACKEND_DIR + 'get_ldas_probabilistic_output/subsampled/'
 PYRAMID_CACHE = {}  # Cache loaded pyramids
 TILE_IMAGE_CACHE = {}  # Cache rendered tiles
 API_VERSION = "2026-02-08"
+MAX_PYRAMIDS_CACHE = 1
+MAX_TIMG_CACHE = 40
 
 class RegionalTileServer:
     """Serves tiles from pyramids using regional coordinates"""
@@ -105,7 +107,7 @@ class RegionalTileServer:
         base = self._base_dir_url(variable)
 
         if "files" in meta and isinstance(meta["files"], str):
-            # backward compatibility with your current metadata
+            # backward compatibility with current metadata
             npz_url = urljoin(base, meta["files"])
         else:
             raise KeyError("Metadata must contain 'file' or string 'files'")
@@ -118,28 +120,16 @@ class RegionalTileServer:
         entry["bundle"] = np.load(BytesIO(r.content), allow_pickle=False)
         return entry["bundle"]
 
-        # try:
-        #     response = requests.get(url, timeout=30)
-        #     response.raise_for_status()
-        #     pyramid_data = pickle.load(io.BytesIO(response.content))
-        #     self.pyramids[cache_key] = pyramid_data
-        #     self.data_bounds = pyramid_data['data_bounds']
-        #     return pyramid_data
-
-        # except requests.exceptions.HTTPError as e:
-        #     if e.response.status_code == 404:
-        #         raise FileNotFoundError(
-        #             f"Pyramid not found at remote URL: {url}\n"
-        #             f"Ensure pyramid files are uploaded to the GitHub repository"
-        #         )
-        #     raise RuntimeError(f"Failed to fetch pyramid from {url}: {e}")
-        # except requests.exceptions.RequestException as e:
-        #     raise RuntimeError(f"Network error fetching pyramid from {url}: {e}")
-    
     def get_level(self, variable: str, z: int) -> xr.DataArray:
         """Fetch and cache one zoom level as an in-memory xarray.DataArray."""
         cache_key = self._stem(variable)
-
+        
+        #purge if too big
+        if len(self.pyramids) >= MAX_PYRAMIDS_CACHE:
+            oldest_key = next(iter(self.pyramids))
+            print(f"[CACHE] Evicting pyramid {oldest_key}")
+            del self.pyramids[oldest_key]
+        
         # ensure meta loaded
         meta = self.load_pyramid_meta(variable)
         bundle = self.load_pyramid_bundle(variable)
@@ -147,7 +137,6 @@ class RegionalTileServer:
         # normalize z to int
         z = int(z)
 
-        # cached?
         levels = self.pyramids[cache_key]["levels"]
         if z in levels:
             return levels[z]
@@ -527,9 +516,8 @@ def get_tile(variable, time_idx, category, z, x, y):
             TILE_IMAGE_CACHE[cache_hash] = img_bytes
             
             # Limit cache size
-            if len(TILE_IMAGE_CACHE) > 1000:
-                for _ in range(100):
-                    TILE_IMAGE_CACHE.pop(next(iter(TILE_IMAGE_CACHE)))
+            if len(TILE_IMAGE_CACHE) > MAX_TIMG_CACHE:
+                TILE_IMAGE_CACHE.pop(next(iter(TILE_IMAGE_CACHE)))
         
         response = send_file(BytesIO(img_bytes), mimetype='image/png')
         # Prevent browser caching to ensure transparency updates are visible
