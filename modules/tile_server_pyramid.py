@@ -5,17 +5,16 @@ Optimized for Shiny + ipyleaflet integration
 
 from flask import Flask, send_file, request, jsonify
 from flask_cors import CORS
-import numpy as np
 from PIL import Image
 from io import BytesIO
+from urllib.parse import urljoin
+import os
+import hashlib
+import requests
+import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import pickle
-import hashlib
-import xarray as xr
-import requests
-import io
-from urllib.parse import urljoin
 
 #import shared
 #from pathlib import Path
@@ -686,8 +685,10 @@ if __name__ == '__main__':
     print("="*60)
     print("HydroViewer Pyramid Tile Server")
     print("="*60)
-    print("Starting on http://localhost:4000")
+
+    port = int(os.environ.get('PORT', 4000))
+    print(f"Starting on http://localhost:{port}")
     print("Tiles: /tiles/{var}/{time}/{cat}/{z}/{x}/{y}.png")
     print("="*60)
     
-    app.run(host='0.0.0.0', port=4000, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)

@@ -1,4 +1,4 @@
-# Amazon HydroViewer 🌍💧 [Local Test Bench]
+# Amazon HydroViewer 🌍💧
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Shiny](https://img.shields.io/badge/Shiny-Python-orange.svg)](https://shiny.posit.co/py/)
