@@ -1,5 +1,7 @@
 from shiny import ui, reactive
-import shared
+from shared import *
+
+
 
 """
 Generate buttons in the sidebar 
@@ -10,7 +12,7 @@ def build_sidebar_content():
         ui.input_radio_buttons(
             "var_selector", 
             "Select variables below:", 
-            choices=shared.list_of_variables, 
+            choices={k : CLIM_VAR_META[k]['long_name'] for k in CLIM_VAR_META}, 
             selected='Rainf_tavg'),
 
         # Buttons to select profile
@@ -19,7 +21,7 @@ def build_sidebar_content():
             ui.input_select(
                 "depth_selector", 
                 "Depth (Only applicable to soil temperature & moisture)", 
-                choices=shared.list_of_profiles, 
+                choices=SOIL_VAR_PROFILE, 
                 selected=0
             ),
         ),
@@ -28,7 +30,7 @@ def build_sidebar_content():
         ui.input_selectize(
             "forecast_category_selector", 
             "Select Category:", 
-            choices=shared.list_of_pcate, # 'Deterministic' 
+            choices=FORECAST_PCATE, # 'Deterministic' 
             selected=0),
         
         # Url portal to documentation 
@@ -49,7 +51,7 @@ def build_sidebar_content():
              target='_blank', 
              class_="btn btn-primary"), # for debugging and test purposes
         
-        open='closed'
+        open='open'
     )
 
 """

@@ -1,4 +1,4 @@
-# Amazon HydroViewer 🌍💧
+# Amazon HydroViewer 🌍💧 [Local Test Bench]
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Shiny](https://img.shields.io/badge/Shiny-Python-orange.svg)](https://shiny.posit.co/py/)
@@ -160,18 +160,27 @@ docker run -p 8000:8000 amazon-hydroviewer
 ```
 AmazonHydroViewer/
 │
-├── app.py                      # Main Shiny application entry point
-├── shared.py                   # Shared configuration and constants
-├── requirements.txt            # Python dependencies
-├── styles.css                  # Custom CSS styling
+├── app.py                       # Main Shiny application entry point
+├── shared.py                    # Shared configuration and constants
+├── requirements.txt             # Python dependencies
+├── styles.css                   # Custom CSS styling
+├── LICENSE                      # MIT license
+├── static/
+│   └── university_shield_blue_iiL_icon.ico  # App icon asset
 ├── www/
-│   └── jupyter-leaflet.js      # Vendored ipyleaflet widget JS dependency
+│   └── jupyter-leaflet.js       # Vendored ipyleaflet widget JS dependency
 │
 ├── modules/
-│   ├── interface.py           # UI components and callbacks
-│   └── mapping.py             # Data retrieval and processing functions
+│   ├── interface.py             # UI components and callbacks
+│   ├── mapping.py               # Data retrieval and processing functions
+│   ├── leaflet_map.py           # Leaflet map creation and rendering
+│   ├── pyramidload.py           # Remote data loading helpers
+│   ├── plotly_theme.py          # Plotly styling/theme utilities
+│   └── tile_server_pyramid.py   # Tile-server pyramid integration
 │
-└── README.md                  # Project documentation
+├── rsconnect-python/
+│   └── AmazonHydroViewer.json   # Posit Connect deployment metadata
+└── README.md                    # Project documentation
 ```
 
 ## 🤝 Contributing

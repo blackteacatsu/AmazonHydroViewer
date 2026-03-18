@@ -5,11 +5,13 @@ import plotly.graph_objects as go
 import shared
 import pandas as pd
 from ipyleaflet import TileLayer
-from modules import interface, plotly_theme, leaflet_map
+from modules import interface, plotly_theme
+from ipyleaflet import Map, basemaps, TileLayer, GeoJSON, WidgetControl, LayersControl, basemap_to_tiles, FullScreenControl
+from ipywidgets import HTML
 import requests
 
 # Shared local tile server URL
-TILE_SERVER_URL = "http://localhost:5000"
+TILE_SERVER_URL = "http://localhost:4000"
 
 # --- Setup page ui ---#
 
@@ -36,9 +38,12 @@ page_header = ui.tags.div(
             href="https://pages.jh.edu/bzaitch1/",
         ),
     ),
-    ui.tags.h1(shared.web_app_title),
+    ui.tags.h1('Hydrometeorology of The Amazon Basin'),
     class_="header",
 )
+
+r = requests.get(shared.hydrobasins_lev05_url)
+geojson_data = r.json()
 
 # Define page content and interface structure
 app_ui = ui.page_fluid(
@@ -55,7 +60,7 @@ app_ui = ui.page_fluid(
                 ui.card_header(ui.tags.h2(
                     "Map of the Amazon Basin \N{ROUND PUSHPIN}")),
                 output_widget("heatmap"),
-                class_="plotly-center-container",
+                class_="plotly-center-container", full_screen = True
             ),
             ui.card(
                 ui.card_header(
@@ -63,7 +68,7 @@ app_ui = ui.page_fluid(
                         "Zonal statistics \N{INBOX TRAY}")
                 ),
                 output_widget("boxplot"),
-                full_screen=True,
+                full_screen=False,
             ),
         ),
         ui.layout_columns(
@@ -84,7 +89,7 @@ app_ui = ui.page_fluid(
                         "General forecast information \N{PUBLIC ADDRESS LOUDSPEAKER}"
                     )
                 ),
-                interface.build_general_info(),  #
+                interface.build_general_info(), 
                 max_height="400px",
                 full_screen=False,
             ),
@@ -97,27 +102,7 @@ app_ui = ui.page_fluid(
 # --- Server logic ---#
 def server(input: Inputs, output: Outputs, session: Session):
     
-    # Call Welcome message & uncomment to show at start-up
-    ## interface.info_modal()
-
-    # Build the heatmap figure & register the heatmap figure as a widget
-    heatmapfig, polygon_layer = leaflet_map.create_hydrobasin_map()
-
-    @render_widget
-    def heatmap():
-        return heatmapfig
-    #current_data_layer = reactive.Value(None)
-    # print(f'Map Widget Buildt: # of layers currently loaded is {len(heatmapfig.layers)}')
-    # print(f'Map Widget Buildt: name of 1st layer {heatmapfig.layers[0].name}')
-    # print(f'Map Widget Buildt: name of 2nd layer {heatmapfig.layers[1].name} \n')
-
-    # Handle click events on the heatmap polygon
-    # polygon = reactive.Value("Waiting input")
-    # def on_polygon_clicked(pfaf_id):
-    #     polygon.set(str(pfaf_id))
-    #     print(f"Polygon clicked: {pfaf_id}")
-    
-    # leaflet_map.polygon_click_handler(polygon_layer, on_polygon_clicked)
+    polygon = reactive.value('Waiting input')
 
     # Get time index 
     @reactive.calc
@@ -127,8 +112,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             variable = input.var_selector()
             if not variable:
                 return None
-
             profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
+
             res = requests.get(
                 f"{TILE_SERVER_URL}/pyramid/time/{variable}",
                 params={"profile": profile},
@@ -181,22 +166,15 @@ def server(input: Inputs, output: Outputs, session: Session):
             return f"Currently at {interface.format_date(time[input.time_slider()])}"
         except Exception:
             return "No dataset loaded or time variable missing."
-
-    @reactive.calc
-    @reactive.event(
-        input.var_selector,
-        input.forecast_category_selector,
-        input.depth_selector,
-        input.time_slider,
-    )
-    def build_tile_url():
-        """Build tile URL from current inputs"""
+    
+    @render_widget
+    def heatmap():
+        """Update tile layer when tile URL changes"""
         variable = input.var_selector()
         if not variable:
             return None
         category = int(input.forecast_category_selector())
         profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
-
         try:
             time_idx = input.time_slider()
             if time_idx is None:
@@ -204,78 +182,100 @@ def server(input: Inputs, output: Outputs, session: Session):
         except Exception:
             return None
 
-        vmin = 40
-        vmax = 100
         if variable in ['Tair_f_tavg', 'SoilTemp_inst']:
-            colormap = 'RdBu_r'
+            colormap = shared.colorscales_temp.get(input.forecast_category_selector())
+
         else:
-            colormap = 'Reds'
+           colormap = shared.colorscales.get(input.forecast_category_selector())
 
-
-        tile_url = f"{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}&mode=global&vmin={vmin}&vmax={vmax}"
-        return tile_url, variable, category
-
-    @reactive.effect
-    @reactive.event(build_tile_url)
-    def update_heatmap_figure():
-        """Update tile layer when tile URL changes"""
-        # Clear cache first to ensure fresh tiles
-        try:
-            requests.get(f"{TILE_SERVER_URL}/cache/clear")
-            print("✓ Cache cleared")
-        except:
-            print("⚠ Could not clear cache")
-    
-        result = build_tile_url()
-        if result is None:
-            return
-        tile_url, variable, category = result
-
-        # Remove existing HydroViewer data layers first
-        # for layer in list(heatmapfig.layers):
-        #     if getattr(layer, "attribution", None) == "HydroViewer":
-        #         print(f"Removing layer: {layer.name}")
-        #         heatmapfig.remove_layer(layer)
-        if len(heatmapfig.layers) > 3:
-                    for layer in list(heatmapfig.layers):
-                        if getattr(layer, "attribution", None) == "HydroViewer":
-                            print(f"Removing layer: {layer.name}")
-                            heatmapfig.remove_layer(layer)
-        # prev_layer = current_data_layer.get()
-        # if prev_layer is not None and prev_layer in heatmapfig.layers:
-        #     print(f"Removing layer: {prev_layer.name}")
-        #     heatmapfig.remove_layer(prev_layer)
-        # Sanity check
-        print(f'Attempt to request: {tile_url}')
-
-        # Create and add new layer
-        forecast_layer = TileLayer(
-            url=tile_url,
-            name=f"{variable} - Category {category}",
-            opacity=0.8,
-            attribution='HydroViewer',
-            min_native_zoom=4,
-            max_native_zoom=9,
-            tms=True,
+        tile_url = (f'{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/'
+                    f'{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}'
+                    f'&mode=global&vmin=40&vmax=100'
         )
-        heatmapfig.add_layer(forecast_layer)
 
-        print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)}')
-        for layer in heatmapfig.layers:
-            print(f'  - {layer.name}')
-            
-        # Update info box
-        # var_name = shared.list_of_variables.get(variable)
-        # category_name = shared.list_of_pcate.get(category)
-        # time = get_time_steps()
-        # time_str = interface.format_date(time[time_idx].values) if time is not None else "?"
+        # tile_url, variable, category = build_tile_url()
+        print(f"{variable, category}")
+        print(tile_url)
+
+        forecast_layer = TileLayer(
+                url=tile_url,
+                name=f"{variable} - Category {category}",
+                opacity=0.8,
+                attribution='HydroViewer',
+                min_native_zoom=4,
+                max_native_zoom=9,
+                tms=True,
+        )
+
+        polygon_layer = GeoJSON(
+            data=geojson_data,
+            style={
+                'color': 'grey',
+                'weight': 0.6,
+                'fillOpacity': 0,
+                'opacity': 1
+            },
+            hover_style={
+                'color': 'grey',
+                'weight': 0,
+                'fillOpacity': 0.4
+            },
+            name='HydroBasins @lvl 5'
+        )
+        #m.add_layer(polygon_layer)
+        #m.add_layer(forecast_layer)
+
+        m = Map(
+            center=[-7, -66],
+            zoom=4,
+            scroll_wheel_zoom=True,
+            max_zoom = 9,
+            basemap = basemap_to_tiles(basemaps.Stadia.AlidadeSmoothDark, 
+                                       "CartoDB Positron") #Stadia.AlidadeSmooth
+        )
+
+        layercontrol = LayersControl(position='bottomright')
+        m.add_control(layercontrol)
+
+        m.add_layer(polygon_layer)
+        m.add_layer(forecast_layer)
+
+        # CSS styling to match app font
+        hover_style = """
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        """
+        hover_info = HTML(value=f'<div style="{hover_style}"><b>Hover over a basin</b></div>')
+        hover_control = WidgetControl(widget=hover_info, position='topright')
+        m.add_control(hover_control)
+
+        def on_hover(event, feature, **kwargs):
+            pfaf_id = feature['properties'].get('PFAF_ID', 'N/A')
+            hover_info.value = f'<div style="{hover_style}"><b>Regional PFAF ID:</b> {pfaf_id}</div>'
         
-        # info_html.value = (
-        #     f"<b>{var_name}</b><br>"
-        #     f"Time: {time_str}<br>"
-        #     f"Category: {category_name}"
-        # )
+        polygon_layer.on_hover(on_hover)
+
+        def on_polygon_click(event, feature, **kwargs):
+            if feature and "properties" in feature:
+                pfaf_id = feature["properties"].get("PFAF_ID")
+                if pfaf_id is not None:
+                    #print(pfaf_id)
+                    polygon.set(str(pfaf_id))
+                    print(polygon())
+
+        polygon_layer.on_click(on_polygon_click)
+        # print(f'Map Widget layer updated: # of layers currently loaded is {len(heatmapfig.layers)}')
+        # for layer in m.layers:
+        #   print(f'  - {layer.name}')
+        #m.add(FullScreenControl())
         
+        return m
+    
+
 
     # Build the boxplot figure which will display the zonal statistics
     @render_plotly
@@ -297,9 +297,9 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         try:
             zonal_stats_tab = pd.read_csv(
-                shared.raw_data_path + polygon() + ".csv")
+                shared.ZONAL_FORECAST_PATH + polygon() + ".csv")
             zonal_climatology_tab = pd.read_csv(
-                shared.climatology_data_path + polygon() + ".csv"
+                shared.ZONAL_CLIM_PATH + polygon() + ".csv"
             )
         except Exception as e:
             ensemblebox.update_layout(
@@ -360,9 +360,9 @@ def server(input: Inputs, output: Outputs, session: Session):
         )
 
         # Apply Brutalist theme with custom title and axis labels
-        var_name = shared.list_of_variables.get(input.var_selector()).upper()
-        var_unit = shared.all_variable_units.get(input.var_selector())
-        depth_label = shared.list_of_profiles.get(int(input.depth_selector()))
+        var_name = shared.CLIM_VAR_META.get(input.var_selector())['long_name'].upper()
+        var_unit = shared.CLIM_VAR_META.get(input.var_selector())['unit']
+        depth_label = shared.SOIL_VAR_PROFILE.get(int(input.depth_selector()))
 
         ensemblebox.update_layout(
             **plotly_theme.get_brutalist_layout(
@@ -382,26 +382,4 @@ def server(input: Inputs, output: Outputs, session: Session):
         return ensemblebox
 
 
-# def start_tile_server():
-#     global _TILE_PROC
-#     if _TILE_PROC is not None and _TILE_PROC.poll() is None:
-#         return  # already running
-
-#     tile_path = os.path.join(os.path.dirname(__file__), "tile_server.py")
-
-#     # Use the SAME python that's running Shiny (base)
-#     _TILE_PROC = subprocess.Popen(
-#         [sys.executable, tile_path],
-#         stdout=subprocess.PIPE,   # or None if you want it in console
-#         stderr=subprocess.STDOUT,
-#         cwd=os.path.dirname(__file__),
-#     )
-
-# def stop_tile_server():
-#     global _TILE_PROC
-#     if _TILE_PROC is not None and _TILE_PROC.poll() is None:
-#         _TILE_PROC.terminate()
-
 app = App(app_ui, server, static_assets=Path(__file__).parent / "www")
-
-

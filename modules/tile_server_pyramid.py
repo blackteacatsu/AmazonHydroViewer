@@ -19,72 +19,221 @@ from urllib.parse import urljoin
 
 #import shared
 #from pathlib import Path
-
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
+# IMPORTANT: PYRAMID_DIR should end with ".../main/" (not refs/heads)
 TILE_SIZE = 256
-PYRAMID_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/'
+BACKEND_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/main/'
+PYRAMID_DIR = BACKEND_DIR + 'get_ldas_probabilistic_output/subsampled/'
 PYRAMID_CACHE = {}  # Cache loaded pyramids
 TILE_IMAGE_CACHE = {}  # Cache rendered tiles
 API_VERSION = "2026-02-08"
-
 
 class RegionalTileServer:
     """Serves tiles from pyramids using regional coordinates"""
     
     def __init__(self):
+        # cache:
+        # pyramids[cache_key] = {"meta": {...}, "levels": {z: xr.DataArray}}
         self.pyramids = {}
         self.data_bounds = None
+        self._index_cache = None
+
+    def load_index(self):
+        if self._index_cache is not None:
+            return self._index_cache
+        index_url = urljoin(PYRAMID_DIR, "index.json")
+        r = requests.get(index_url, timeout=10)
+        if r.status_code == 404:
+            raise FileNotFoundError(f"Index not found at: {index_url}")
+        r.raise_for_status()
+
+        self._index_cache = r.json()
+        return self._index_cache
     
-    def load_pyramid(self, variable, profile=0):
-        # """Load pyramid from disk"""
-        # cache_key = f"{variable}_lvl_{profile}"
-        
-        # if cache_key in self.pyramids:
-        #     return self.pyramids[cache_key]
-        
-        # if not pyramid_file.exists():
-        #     raise FileNotFoundError(f"Pyramid not found: {pyramid_file}")
-        
-        # with open(pyramid_file, 'rb') as f:
-        #     pyramid_data = pickle.load(f)
-        
-        # self.pyramids[cache_key] = pyramid_data
-        # self.data_bounds = pyramid_data['data_bounds']
-        
-        # print("="*60)        
-        # print(f"Loaded pyramid: {cache_key}, \n"
-        #       f"zoom levels: {list(pyramid_data['pyramid'].keys())}, \n"
-        #       f"bounds: {pyramid_data['data_bounds']}" )
-        # print("="*60)
-        """Load pyramid from remote"""
-        cache_key = f"{variable}_lvl_{profile}"
+    def _stem(self, variable: str) -> str:
+        # match pipeline naming
+        index = self.load_index()
+        init_date = index["initialization_date"]
+        return f"{init_date}_tercile_prob_max_{variable}" 
+    
+    def _base_dir_url(self, variable: str) -> str:
+        """
+        output url should looks like: 
+        '~/get_ldas_probabilistic_output/subsampled/{date}_tercile_probability_max_{var}/'
+        """
+        stem = self._stem(variable)
+        return urljoin(PYRAMID_DIR, f"{stem}/")
+    
+    def load_pyramid_meta(self, variable):
+        """Load pyramid metadata from remote."""
+        cache_key = self._stem(variable)
         if cache_key in self.pyramids:
-            return self.pyramids[cache_key]
+            return self.pyramids[cache_key]["meta"]
         
-        filename = f"prob_2024_dec_tercile_probability_max_{variable}_lvl_{profile}_subsampled.pkl"
-        url = urljoin(PYRAMID_DIR, f"refs/heads/main/get_ldas_probabilistic_output/subsampled/{filename}")
+        base = self._base_dir_url(variable)
+        meta_url = urljoin(base, f"{cache_key}_meta.json")
+        
+        r = requests.get(meta_url, timeout=30)
+        if r.status_code == 404:
+            raise FileNotFoundError(f"Meta not found at: {meta_url}")
+        r.raise_for_status()
 
-        try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            pyramid_data = pickle.load(io.BytesIO(response.content))
-            self.pyramids[cache_key] = pyramid_data
-            self.data_bounds = pyramid_data['data_bounds']
-            return pyramid_data
+        meta = r.json()
+        self.data_bounds = meta.get("data_bounds")
 
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                raise FileNotFoundError(
-                    f"Pyramid not found at remote URL: {url}\n"
-                    f"Ensure pyramid files are uploaded to the GitHub repository"
-                )
-            raise RuntimeError(f"Failed to fetch pyramid from {url}: {e}")
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Network error fetching pyramid from {url}: {e}")
+        self.pyramids[cache_key] = {
+            "meta": meta,
+            "bundle": None,
+            "levels": {},
+
+        }
+        return meta
     
+    def load_pyramid_bundle(self, variable):
+        """Load the single pyramid npz bundle from remote and cache it."""
+        cache_key = self._stem(variable)
+
+        # ensure meta exists
+        meta = self.load_pyramid_meta(variable)
+        entry = self.pyramids[cache_key]
+
+        if entry["bundle"] is not None:
+            return entry["bundle"]
+
+        base = self._base_dir_url(variable)
+
+        if "files" in meta and isinstance(meta["files"], str):
+            # backward compatibility with your current metadata
+            npz_url = urljoin(base, meta["files"])
+        else:
+            raise KeyError("Metadata must contain 'file' or string 'files'")
+
+        r = requests.get(npz_url, timeout=60)
+        if r.status_code == 404:
+            raise FileNotFoundError(f"Pyramid bundle not found at: {npz_url}")
+        r.raise_for_status()
+
+        entry["bundle"] = np.load(BytesIO(r.content), allow_pickle=False)
+        return entry["bundle"]
+
+        # try:
+        #     response = requests.get(url, timeout=30)
+        #     response.raise_for_status()
+        #     pyramid_data = pickle.load(io.BytesIO(response.content))
+        #     self.pyramids[cache_key] = pyramid_data
+        #     self.data_bounds = pyramid_data['data_bounds']
+        #     return pyramid_data
+
+        # except requests.exceptions.HTTPError as e:
+        #     if e.response.status_code == 404:
+        #         raise FileNotFoundError(
+        #             f"Pyramid not found at remote URL: {url}\n"
+        #             f"Ensure pyramid files are uploaded to the GitHub repository"
+        #         )
+        #     raise RuntimeError(f"Failed to fetch pyramid from {url}: {e}")
+        # except requests.exceptions.RequestException as e:
+        #     raise RuntimeError(f"Network error fetching pyramid from {url}: {e}")
+    
+    def get_level(self, variable: str, z: int) -> xr.DataArray:
+        """Fetch and cache one zoom level as an in-memory xarray.DataArray."""
+        cache_key = self._stem(variable)
+
+        # ensure meta loaded
+        meta = self.load_pyramid_meta(variable)
+        bundle = self.load_pyramid_bundle(variable)
+
+        # normalize z to int
+        z = int(z)
+
+        # cached?
+        levels = self.pyramids[cache_key]["levels"]
+        if z in levels:
+            return levels[z]
+        
+        available = [int(v) for v in meta.get('zooms', [])]
+        if z not in available:
+            raise KeyError(f'Zoom {z} not in available. Available: {available}')
+        
+        values = bundle[f"z{z}_values"]
+        lat = bundle[f"z{z}_lat"]
+        lon = bundle[f"z{z}_lon"]
+        time = bundle["time"]
+        category = bundle["category"]
+        profile_dim = meta.get('profile_dim')
+
+        if profile_dim is None:
+            # NPZ level files may store the first two axes as either
+            # (time, category, lat, lon) or (category, time, lat, lon).
+            # Normalize to (time, category, lat, lon) for downstream code.
+            expected_shape_tc = (len(time), len(category), len(lat), len(lon))
+            expected_shape_ct = (len(category), len(time), len(lat), len(lon))
+            actual_shape = tuple(values.shape)
+
+            if actual_shape == expected_shape_tc:
+                values_tc = values
+            elif actual_shape == expected_shape_ct:
+                values_tc = np.transpose(values, (1, 0, 2, 3))
+            else:
+                raise ValueError(
+                    "Unexpected NPZ shape for "
+                    f"{variable} z={z}: values={actual_shape}, "
+                    f"expected (time,category,lat,lon)={expected_shape_tc} or "
+                    f"(category,time,lat,lon)={expected_shape_ct}"
+                )
+
+            da = xr.DataArray(
+                values_tc,
+                coords={"time": time, "category": category, "lat": lat, "lon": lon},
+                dims=("time", "category", "lat", "lon"),
+                name=f"{variable}"
+            )
+        
+        else:
+            profile_depth = bundle['profile_depth']
+
+            # expected format: (time, category, profile, lat, lon)
+            expected_shape_tcp = (len(time), len(category), len(profile_depth), len(lat), len(lon))
+            expected_shape_ctp = (len(category), len(time), len(profile_depth), len(lat), len(lon))
+            actual_shape = tuple(values.shape)
+
+            if actual_shape == expected_shape_tcp:
+                values_tcp = values
+            elif actual_shape == expected_shape_ctp:
+                values_tcp = np.transpose(values, (1, 0, 2, 3, 4))
+            else:
+                raise ValueError(
+                    f"Unexpected profiled NPZ shape for {variable} - Z={z}: "
+                    f"{actual_shape}, expected {expected_shape_tcp} or {expected_shape_ctp}"
+                )
+            
+            da = xr.DataArray(
+                values_tcp,
+                coords={
+                    "time": time, 
+                    "category": category, 
+                    profile_dim : profile_depth,
+                    "lat": lat, "lon": lon
+                },
+                dims=("time", "category", profile_dim, "lat", "lon"),
+                name=f"{variable}"
+            )
+
+        levels[z] = da
+        return da
+
+    def get_best_zoom(self, variable: str, requested_zoom: int) -> int:
+        """Pick nearest available zoom from metadata."""
+        meta = self.load_pyramid_meta(variable)
+        available = sorted(int(z) for z in meta.get("zooms", []))
+        if not available:
+            raise KeyError("No zoom levels found in metadata 'files'.")
+        if requested_zoom in available:
+            return requested_zoom
+        return min(available, key=lambda k: abs(k - requested_zoom))
+
     def tile_to_lonlat_bounds(self, zoom, x, y):
         """
         Convert Web Mercator tile coordinates to lat/lon bounds
@@ -280,7 +429,6 @@ class RegionalTileServer:
 
         return img_p
 
-
 # Global server instance
 tile_server = RegionalTileServer()
 
@@ -293,7 +441,6 @@ def get_tile(variable, time_idx, category, z, x, y):
     Query params:
     - colormap: matplotlib colormap name
     - vmin, vmax: color scale range
-    - profile: depth profile (0-3)
     - cache: enable/disable caching
     """
     colormap = request.args.get('colormap', 'Reds')
@@ -328,21 +475,15 @@ def get_tile(variable, time_idx, category, z, x, y):
         return response
 
     try:
-        # Load pyramid
-        pyramid_data = tile_server.load_pyramid(variable, profile)
-        pyramid = pyramid_data['pyramid']
-
-        # Select appropriate zoom level
-        if z not in pyramid:
-            available_zooms = sorted(pyramid.keys())
-            z_actual = min(available_zooms, key=lambda k: abs(k - z))
-        else:
-            z_actual = z
-
-        data = pyramid[z_actual]
+        # Resolve nearest available zoom in NPZ metadata and load that level
+        z_actual = tile_server.get_best_zoom(variable, z)
+        data = tile_server.get_level(variable, z_actual)
 
         # Select time and category
         data_slice = data.isel(time=time_idx, category=category)
+        profile_dim = tile_server.load_pyramid_meta(variable).get("profile_dim")
+        if profile_dim and profile_dim in data_slice.dims:
+            data_slice = data_slice.isel({profile_dim: profile})
 
         # Get tile coordinate grids
         grids = tile_server.get_tile_lonlat_grids(z, x, y, TILE_SIZE, mode=mode)
@@ -416,7 +557,8 @@ def pyramid_info(variable):
     profile = request.args.get('profile', 0, type=int)
 
     try:
-        pyramid_data = tile_server.load_pyramid(variable, profile)
+        meta = tile_server.load_pyramid_meta(variable)
+        zoom_levels = sorted(int(z) for z in meta.get("zooms", []))
 
         # Convert numpy types to native Python types for JSON serialization
         def convert_to_native(obj):
@@ -435,16 +577,16 @@ def pyramid_info(variable):
         info = {
             'variable': variable,
             'profile': int(profile),
-            'zoom_levels': [int(z) for z in pyramid_data['pyramid'].keys()],
-            'grain_map': convert_to_native(pyramid_data['grain_map']),
-            'data_bounds': convert_to_native(pyramid_data['data_bounds']),
+            'zoom_levels': zoom_levels,
+            'data_bounds': convert_to_native(meta.get('data_bounds')),
+            'files': convert_to_native(meta.get('files', meta.get('files'))),
             'levels': {}
         }
 
-        for zoom, data in pyramid_data['pyramid'].items():
+        for zoom in zoom_levels:
+            data = tile_server.get_level(variable, zoom)
             info['levels'][str(zoom)] = {
-                'shape': [int(len(data.lat)), int(len(data.lon))],
-                'grain': int(pyramid_data['grain_map'][zoom])
+                'shape': [int(len(data.lat)), int(len(data.lon))]
             }
 
         return jsonify(info)
@@ -455,15 +597,18 @@ def pyramid_info(variable):
 
 @app.route('/pyramid/time/<variable>')
 def pyramid_time(variable):
-    """Get available time coordinates for a variable/profile."""
+    """Get available time coordinates for a variable."""
     profile = request.args.get('profile', 0, type=int)
 
     try:
-        pyramid_data = tile_server.load_pyramid(variable, profile)
-        pyramid = pyramid_data['pyramid']
+        meta = tile_server.load_pyramid_meta(variable)
+        zoom_levels = sorted(int(z) for z in meta.get("zooms", []))
+        if not zoom_levels:
+            raise KeyError("No zoom levels found in metadata 'files'.")
+
         # Use any zoom level; time coordinate is shared across levels.
-        sample_zoom = sorted(pyramid.keys())[0]
-        time_values = pyramid[sample_zoom].time.values
+        sample_zoom = zoom_levels[0]
+        time_values = tile_server.get_level(variable, sample_zoom).time.values
 
         time_iso = []
         for t in time_values:
@@ -493,17 +638,12 @@ def save_test_tile(variable, time_idx, category, z, x, y):
     mode = request.args.get('mode', 'global')
 
     try:
-        pyramid_data = tile_server.load_pyramid(variable, profile)
-        pyramid = pyramid_data['pyramid']
-
-        if z not in pyramid:
-            available_zooms = sorted(pyramid.keys())
-            z_actual = min(available_zooms, key=lambda k: abs(k - z))
-        else:
-            z_actual = z
-
-        data = pyramid[z_actual]
+        z_actual = tile_server.get_best_zoom(variable, z)
+        data = tile_server.get_level(variable, z_actual)
         data_slice = data.isel(time=time_idx, category=category)
+        profile_dim = tile_server.load_pyramid_meta(variable).get("profile_dim")
+        if profile_dim and profile_dim in data_slice.dims:
+            data_slice = data_slice.isel({profile_dim: profile})
 
         grids = tile_server.get_tile_lonlat_grids(z, x, y, TILE_SIZE, mode=mode)
 
@@ -546,8 +686,8 @@ if __name__ == '__main__':
     print("="*60)
     print("HydroViewer Pyramid Tile Server")
     print("="*60)
-    print("Starting on http://localhost:5000")
+    print("Starting on http://localhost:4000")
     print("Tiles: /tiles/{var}/{time}/{cat}/{z}/{x}/{y}.png")
     print("="*60)
     
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=4000, debug=False, threaded=True)

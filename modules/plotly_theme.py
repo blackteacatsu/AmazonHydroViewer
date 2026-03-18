@@ -67,14 +67,14 @@ def get_brutalist_layout(**kwargs):
             'tickcolor': COLORS['border'],
             'tickfont': {
                 'family': FONTS['family'],
-                'size': 10,
+                'size': 12,
                 'color': COLORS['text'],
             },
             'zeroline': False,
             'title': {
                 'font': {
                     'family': FONTS['family'],
-                    'size': 11,
+                    'size': 12,
                     'color': COLORS['text'],
                 },
             },
@@ -93,7 +93,7 @@ def get_brutalist_layout(**kwargs):
             'tickcolor': COLORS['border'],
             'tickfont': {
                 'family': FONTS['family'],
-                'size': 10,
+                'size': 12,
                 'color': COLORS['text'],
             },
             'zeroline': True,
@@ -102,7 +102,7 @@ def get_brutalist_layout(**kwargs):
             'title': {
                 'font': {
                     'family': FONTS['family'],
-                    'size': 11,
+                    'size': 12,
                     'color': COLORS['text'],
                 },
             },
@@ -121,7 +121,7 @@ def get_brutalist_layout(**kwargs):
             'yanchor': 'top',
             'font': {
                 'family': FONTS['family'],
-                'size': 10,
+                'size': 12,
                 'color': COLORS['text'],
             },
             'bgcolor': COLORS['background'],
