@@ -1,11 +1,11 @@
-from shiny import App, Inputs, Outputs, Session, reactive, ui, render, module
+from shiny import App, Inputs, Outputs, Session, reactive, ui, render
 from pathlib import Path
 from shinywidgets import output_widget, render_plotly, render_widget
 import plotly.graph_objects as go
 import shared
 import pandas as pd
 from ipyleaflet import TileLayer
-from modules import interface, plotly_theme, leaflet_map
+from modules import interface, plotly_theme
 from ipyleaflet import Map, basemaps, TileLayer, GeoJSON, WidgetControl, LayersControl, basemap_to_tiles, FullScreenControl
 from ipywidgets import HTML
 import requests
