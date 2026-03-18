@@ -10,9 +10,9 @@ from io import BytesIO
 from urllib.parse import urljoin
 import os
 import hashlib
+import gc
 import requests
 import numpy as np
-import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
@@ -26,18 +26,17 @@ CORS(app)
 TILE_SIZE = 256
 BACKEND_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/main/'
 PYRAMID_DIR = BACKEND_DIR + 'get_ldas_probabilistic_output/subsampled/'
-PYRAMID_CACHE = {}  # Cache loaded pyramids
 TILE_IMAGE_CACHE = {}  # Cache rendered tiles
 API_VERSION = "2026-02-08"
-MAX_PYRAMIDS_CACHE = 1
-MAX_TIMG_CACHE = 40
+MAX_META_CACHE = 50
+MAX_TILE_CACHE = 100
 
 class RegionalTileServer:
     """Serves tiles from pyramids using regional coordinates"""
     
     def __init__(self):
-        # cache:
-        # pyramids[cache_key] = {"meta": {...}, "levels": {z: xr.DataArray}}
+        # Metadata-only cache:
+        # pyramids[cache_key] = {"meta": {...}}
         self.pyramids = {}
         self.data_bounds = None
         self._index_cache = None
@@ -85,25 +84,17 @@ class RegionalTileServer:
         meta = r.json()
         self.data_bounds = meta.get("data_bounds")
 
-        self.pyramids[cache_key] = {
-            "meta": meta,
-            "bundle": None,
-            "levels": {},
+        if len(self.pyramids) >= MAX_META_CACHE:
+            oldest_key = next(iter(self.pyramids))
+            print(f"[META CACHE] Evicting {oldest_key}")
+            del self.pyramids[oldest_key]
 
-        }
+        self.pyramids[cache_key] = {"meta": meta}
         return meta
     
     def load_pyramid_bundle(self, variable):
-        """Load the single pyramid npz bundle from remote and cache it."""
-        cache_key = self._stem(variable)
-
-        # ensure meta exists
+        """Load the single pyramid npz bundle from remote for one request."""
         meta = self.load_pyramid_meta(variable)
-        entry = self.pyramids[cache_key]
-
-        if entry["bundle"] is not None:
-            return entry["bundle"]
-
         base = self._base_dir_url(variable)
 
         if "files" in meta and isinstance(meta["files"], str):
@@ -117,100 +108,68 @@ class RegionalTileServer:
             raise FileNotFoundError(f"Pyramid bundle not found at: {npz_url}")
         r.raise_for_status()
 
-        entry["bundle"] = np.load(BytesIO(r.content), allow_pickle=False)
-        return entry["bundle"]
+        return np.load(BytesIO(r.content), allow_pickle=False)
 
-    def get_level(self, variable: str, z: int) -> xr.DataArray:
-        """Fetch and cache one zoom level as an in-memory xarray.DataArray."""
-        cache_key = self._stem(variable)
-        
-        #purge if too big
-        if len(self.pyramids) >= MAX_PYRAMIDS_CACHE:
-            oldest_key = next(iter(self.pyramids))
-            print(f"[CACHE] Evicting pyramid {oldest_key}")
-            del self.pyramids[oldest_key]
-        
-        # ensure meta loaded
+    def get_level_slice(self, variable: str, z: int, time_idx: int, category_idx: int, profile_idx: int = 0):
+        """Return one 2D slice (lat, lon) for a given zoom/time/category/profile."""
         meta = self.load_pyramid_meta(variable)
         bundle = self.load_pyramid_bundle(variable)
+        try:
+            z = int(z)
+            available = [int(v) for v in meta.get('zooms', [])]
+            if z not in available:
+                raise KeyError(f'Zoom {z} not in available. Available: {available}')
 
-        # normalize z to int
-        z = int(z)
+            values = bundle[f"z{z}_values"]
+            lat = bundle[f"z{z}_lat"]
+            lon = bundle[f"z{z}_lon"]
+            time = bundle["time"]
+            category = bundle["category"]
+            profile_dim = meta.get('profile_dim')
 
-        levels = self.pyramids[cache_key]["levels"]
-        if z in levels:
-            return levels[z]
-        
-        available = [int(v) for v in meta.get('zooms', [])]
-        if z not in available:
-            raise KeyError(f'Zoom {z} not in available. Available: {available}')
-        
-        values = bundle[f"z{z}_values"]
-        lat = bundle[f"z{z}_lat"]
-        lon = bundle[f"z{z}_lon"]
-        time = bundle["time"]
-        category = bundle["category"]
-        profile_dim = meta.get('profile_dim')
+            if time_idx < 0 or time_idx >= len(time):
+                raise IndexError(f"time_idx out of range: {time_idx} (0..{len(time)-1})")
+            if category_idx < 0 or category_idx >= len(category):
+                raise IndexError(f"category out of range: {category_idx} (0..{len(category)-1})")
 
-        if profile_dim is None:
-            # NPZ level files may store the first two axes as either
-            # (time, category, lat, lon) or (category, time, lat, lon).
-            # Normalize to (time, category, lat, lon) for downstream code.
-            expected_shape_tc = (len(time), len(category), len(lat), len(lon))
-            expected_shape_ct = (len(category), len(time), len(lat), len(lon))
-            actual_shape = tuple(values.shape)
+            if profile_dim is None:
+                expected_shape_tc = (len(time), len(category), len(lat), len(lon))
+                expected_shape_ct = (len(category), len(time), len(lat), len(lon))
+                actual_shape = tuple(values.shape)
 
-            if actual_shape == expected_shape_tc:
-                values_tc = values
-            elif actual_shape == expected_shape_ct:
-                values_tc = np.transpose(values, (1, 0, 2, 3))
+                if actual_shape == expected_shape_tc:
+                    values_2d = values[time_idx, category_idx, :, :]
+                elif actual_shape == expected_shape_ct:
+                    values_2d = values[category_idx, time_idx, :, :]
+                else:
+                    raise ValueError(
+                        "Unexpected NPZ shape for "
+                        f"{variable} z={z}: values={actual_shape}, "
+                        f"expected (time,category,lat,lon)={expected_shape_tc} or "
+                        f"(category,time,lat,lon)={expected_shape_ct}"
+                    )
             else:
-                raise ValueError(
-                    "Unexpected NPZ shape for "
-                    f"{variable} z={z}: values={actual_shape}, "
-                    f"expected (time,category,lat,lon)={expected_shape_tc} or "
-                    f"(category,time,lat,lon)={expected_shape_ct}"
-                )
+                profile_depth = bundle['profile_depth']
+                if profile_idx < 0 or profile_idx >= len(profile_depth):
+                    raise IndexError(f"profile out of range: {profile_idx} (0..{len(profile_depth)-1})")
 
-            da = xr.DataArray(
-                values_tc,
-                coords={"time": time, "category": category, "lat": lat, "lon": lon},
-                dims=("time", "category", "lat", "lon"),
-                name=f"{variable}"
-            )
-        
-        else:
-            profile_depth = bundle['profile_depth']
+                expected_shape_tcp = (len(time), len(category), len(profile_depth), len(lat), len(lon))
+                expected_shape_ctp = (len(category), len(time), len(profile_depth), len(lat), len(lon))
+                actual_shape = tuple(values.shape)
 
-            # expected format: (time, category, profile, lat, lon)
-            expected_shape_tcp = (len(time), len(category), len(profile_depth), len(lat), len(lon))
-            expected_shape_ctp = (len(category), len(time), len(profile_depth), len(lat), len(lon))
-            actual_shape = tuple(values.shape)
+                if actual_shape == expected_shape_tcp:
+                    values_2d = values[time_idx, category_idx, profile_idx, :, :]
+                elif actual_shape == expected_shape_ctp:
+                    values_2d = values[category_idx, time_idx, profile_idx, :, :]
+                else:
+                    raise ValueError(
+                        f"Unexpected profiled NPZ shape for {variable} - Z={z}: "
+                        f"{actual_shape}, expected {expected_shape_tcp} or {expected_shape_ctp}"
+                    )
 
-            if actual_shape == expected_shape_tcp:
-                values_tcp = values
-            elif actual_shape == expected_shape_ctp:
-                values_tcp = np.transpose(values, (1, 0, 2, 3, 4))
-            else:
-                raise ValueError(
-                    f"Unexpected profiled NPZ shape for {variable} - Z={z}: "
-                    f"{actual_shape}, expected {expected_shape_tcp} or {expected_shape_ctp}"
-                )
-            
-            da = xr.DataArray(
-                values_tcp,
-                coords={
-                    "time": time, 
-                    "category": category, 
-                    profile_dim : profile_depth,
-                    "lat": lat, "lon": lon
-                },
-                dims=("time", "category", profile_dim, "lat", "lon"),
-                name=f"{variable}"
-            )
-
-        levels[z] = da
-        return da
+            return values_2d, lat, lon
+        finally:
+            bundle.close()
 
     def get_best_zoom(self, variable: str, requested_zoom: int) -> int:
         """Pick nearest available zoom from metadata."""
@@ -321,33 +280,87 @@ class RegionalTileServer:
 
         return lon, lat
     
-    def get_tile_data(self, data_slice, x, y):
+    def _nearest_indices_1d(self, coord_1d: np.ndarray, target: np.ndarray) -> np.ndarray:
+        """Nearest-neighbor index lookup for monotonic 1D coordinates."""
+        coord = np.asarray(coord_1d)
+        tgt = np.asarray(target)
+
+        if coord.ndim != 1:
+            raise ValueError("Coordinate must be 1D")
+        if coord.size == 0:
+            raise ValueError("Coordinate is empty")
+        if coord.size == 1:
+            return np.zeros(tgt.shape, dtype=np.int64)
+
+        if coord[0] <= coord[-1]:
+            idx = np.searchsorted(coord, tgt, side='left')
+            idx = np.clip(idx, 1, coord.size - 1)
+            left = coord[idx - 1]
+            right = coord[idx]
+            choose_left = np.abs(tgt - left) <= np.abs(right - tgt)
+            return idx - choose_left.astype(np.int64)
+
+        # descending coordinates: search on reversed array and map back
+        coord_rev = coord[::-1]
+        idx_rev = np.searchsorted(coord_rev, tgt, side='left')
+        idx_rev = np.clip(idx_rev, 1, coord_rev.size - 1)
+        left = coord_rev[idx_rev - 1]
+        right = coord_rev[idx_rev]
+        choose_left = np.abs(tgt - left) <= np.abs(right - tgt)
+        nearest_rev = idx_rev - choose_left.astype(np.int64)
+        return (coord.size - 1) - nearest_rev
+
+    def get_tile_data(self, values_2d, src_lon, src_lat, tile_lon, tile_lat):
         """
-        Interpolate data to tile grid using xarray's interp method
-        Matches the working get_tile_data function from subsample_pyramid.py
+        Sample a 2D source grid to the tile grid with nearest-neighbor lookup.
 
         Parameters
         ----------
-        data_slice : xr.DataArray
-            Data slice for a specific time and category
-        lon, lat : np.ndarray
-            Meshgrid of lon/lat coordinates for the tile
+        values_2d : np.ndarray
+            Source data on [lat, lon] axes
+        src_lon, src_lat : np.ndarray
+            1D source coordinate arrays
+        tile_lon, tile_lat : np.ndarray
+            Tile meshgrid arrays
 
         Returns
         -------
         tile_data : np.ndarray
-            Interpolated data for the tile
+            Resampled data for the tile
         """
-        # Use xarray's interp method (same as working code)
-        tile_data_flat = data_slice.interp(
-            lat=xr.DataArray(y.ravel(), dims='points'),
-            lon=xr.DataArray(x.ravel(), dims='points'),
-            method='nearest'
-        ).values
+        if values_2d.ndim != 2:
+            raise ValueError(f"values_2d must be 2D [lat,lon], got shape {values_2d.shape}")
+        if values_2d.shape != (len(src_lat), len(src_lon)):
+            raise ValueError(
+                f"values shape mismatch: values={values_2d.shape}, "
+                f"lat={len(src_lat)}, lon={len(src_lon)}"
+            )
 
-        tile_data = tile_data_flat.reshape(x.shape)
+        src_lon = np.asarray(src_lon)
+        src_lat = np.asarray(src_lat)
+        tile_lon_flat = tile_lon.ravel()
+        tile_lat_flat = tile_lat.ravel()
 
-        return tile_data
+        lon_min = float(np.min(src_lon))
+        lon_max = float(np.max(src_lon))
+        lat_min = float(np.min(src_lat))
+        lat_max = float(np.max(src_lat))
+
+        # Prevent edge-clamping artifacts: only sample pixels that are inside
+        # the source coordinate extent; outside pixels become transparent later.
+        in_bounds = (
+            (tile_lon_flat >= lon_min) & (tile_lon_flat <= lon_max) &
+            (tile_lat_flat >= lat_min) & (tile_lat_flat <= lat_max)
+        )
+
+        sampled_flat = np.full(tile_lon_flat.shape, np.nan, dtype=np.float32)
+        if np.any(in_bounds):
+            lon_idx = self._nearest_indices_1d(src_lon, tile_lon_flat[in_bounds])
+            lat_idx = self._nearest_indices_1d(src_lat, tile_lat_flat[in_bounds])
+            sampled_vals = values_2d[lat_idx, lon_idx]
+            sampled_flat[in_bounds] = sampled_vals.astype(np.float32, copy=False)
+
+        return sampled_flat.reshape(tile_lon.shape)
     
     def create_colormap_image(self, data, colormap_name, vmin, vmax):
         """Create RGBA image from data"""
@@ -462,16 +475,16 @@ def get_tile(variable, time_idx, category, z, x, y):
         response.headers['Expires'] = '0'
         return response
 
+    values_2d = None
+    src_lat = None
+    src_lon = None
+    tile_data = None
     try:
-        # Resolve nearest available zoom in NPZ metadata and load that level
+        # Resolve nearest available zoom and load one 2D source slice
         z_actual = tile_server.get_best_zoom(variable, z)
-        data = tile_server.get_level(variable, z_actual)
-
-        # Select time and category
-        data_slice = data.isel(time=time_idx, category=category)
-        profile_dim = tile_server.load_pyramid_meta(variable).get("profile_dim")
-        if profile_dim and profile_dim in data_slice.dims:
-            data_slice = data_slice.isel({profile_dim: profile})
+        values_2d, src_lat, src_lon = tile_server.get_level_slice(
+            variable, z_actual, time_idx, category, profile
+        )
 
         # Get tile coordinate grids
         grids = tile_server.get_tile_lonlat_grids(z, x, y, TILE_SIZE, mode=mode)
@@ -489,8 +502,8 @@ def get_tile(variable, time_idx, category, z, x, y):
 
         lon, lat = grids
 
-        # Interpolate to tile (using working xarray method)
-        tile_data = tile_server.get_tile_data(data_slice, lon, lat)
+        # Resample source grid to tile grid with NumPy nearest neighbor
+        tile_data = tile_server.get_tile_data(values_2d, src_lon, src_lat, lon, lat)
 
         # Debug: Check NaN percentage
         nan_pct = np.isnan(tile_data).sum() / tile_data.size * 100
@@ -516,7 +529,7 @@ def get_tile(variable, time_idx, category, z, x, y):
             TILE_IMAGE_CACHE[cache_hash] = img_bytes
             
             # Limit cache size
-            if len(TILE_IMAGE_CACHE) > MAX_TIMG_CACHE:
+            if len(TILE_IMAGE_CACHE) > MAX_TILE_CACHE:
                 TILE_IMAGE_CACHE.pop(next(iter(TILE_IMAGE_CACHE)))
         
         response = send_file(BytesIO(img_bytes), mimetype='image/png')
@@ -536,6 +549,12 @@ def get_tile(variable, time_idx, category, z, x, y):
         import traceback
         traceback.print_exc()
         return str(e), 500
+    finally:
+        del values_2d
+        del src_lat
+        del src_lon
+        del tile_data
+        gc.collect()
 
 
 @app.route('/pyramid/info/<variable>')
@@ -570,11 +589,16 @@ def pyramid_info(variable):
             'levels': {}
         }
 
-        for zoom in zoom_levels:
-            data = tile_server.get_level(variable, zoom)
-            info['levels'][str(zoom)] = {
-                'shape': [int(len(data.lat)), int(len(data.lon))]
-            }
+        bundle = tile_server.load_pyramid_bundle(variable)
+        try:
+            for zoom in zoom_levels:
+                lat = bundle[f"z{zoom}_lat"]
+                lon = bundle[f"z{zoom}_lon"]
+                info['levels'][str(zoom)] = {
+                    'shape': [int(len(lat)), int(len(lon))]
+                }
+        finally:
+            bundle.close()
 
         return jsonify(info)
 
@@ -593,9 +617,12 @@ def pyramid_time(variable):
         if not zoom_levels:
             raise KeyError("No zoom levels found in metadata 'files'.")
 
-        # Use any zoom level; time coordinate is shared across levels.
-        sample_zoom = zoom_levels[0]
-        time_values = tile_server.get_level(variable, sample_zoom).time.values
+        # Time coordinate is shared across levels; read once from request-scoped bundle.
+        bundle = tile_server.load_pyramid_bundle(variable)
+        try:
+            time_values = bundle["time"]
+        finally:
+            bundle.close()
 
         time_iso = []
         for t in time_values:
@@ -624,13 +651,15 @@ def save_test_tile(variable, time_idx, category, z, x, y):
     profile = request.args.get('profile', 0, type=int)
     mode = request.args.get('mode', 'global')
 
+    values_2d = None
+    src_lat = None
+    src_lon = None
+    tile_data = None
     try:
         z_actual = tile_server.get_best_zoom(variable, z)
-        data = tile_server.get_level(variable, z_actual)
-        data_slice = data.isel(time=time_idx, category=category)
-        profile_dim = tile_server.load_pyramid_meta(variable).get("profile_dim")
-        if profile_dim and profile_dim in data_slice.dims:
-            data_slice = data_slice.isel({profile_dim: profile})
+        values_2d, src_lat, src_lon = tile_server.get_level_slice(
+            variable, z_actual, time_idx, category, profile
+        )
 
         grids = tile_server.get_tile_lonlat_grids(z, x, y, TILE_SIZE, mode=mode)
 
@@ -638,7 +667,7 @@ def save_test_tile(variable, time_idx, category, z, x, y):
             return "Tile outside data bounds", 404
 
         lon, lat = grids
-        tile_data = tile_server.get_tile_data(data_slice, lon, lat)
+        tile_data = tile_server.get_tile_data(values_2d, src_lon, src_lat, lon, lat)
         image = tile_server.create_colormap_image(tile_data, colormap, vmin, vmax)
 
         # Save to disk
@@ -649,6 +678,12 @@ def save_test_tile(variable, time_idx, category, z, x, y):
 
     except Exception as e:
         return str(e), 500
+    finally:
+        del values_2d
+        del src_lat
+        del src_lon
+        del tile_data
+        gc.collect()
 
 
 @app.route('/cache/clear')
