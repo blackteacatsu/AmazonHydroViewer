@@ -28,7 +28,7 @@ BACKEND_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroview
 PYRAMID_DIR = BACKEND_DIR + 'get_ldas_probabilistic_output/subsampled/'
 TILE_IMAGE_CACHE = {}  # Cache rendered tiles
 API_VERSION = "2026-02-08"
-MAX_META_CACHE = 8
+MAX_META_CACHE = 1
 MAX_TILE_CACHE = 20
 
 class RegionalTileServer:
