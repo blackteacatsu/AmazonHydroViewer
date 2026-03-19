@@ -11,8 +11,8 @@ from ipywidgets import HTML
 import requests
 
 # Shared local tile server URL
-# TILE_SERVER_URL = "http://localhost:4000"
-TILE_SERVER_URL = "https://amazonhydroviewer.onrender.com"
+TILE_SERVER_URL = "http://localhost:4000"
+#TILE_SERVER_URL = "https://amazonhydroviewer.onrender.com"
 # --- Setup page ui ---#
 
 # Build <head> contents
@@ -53,6 +53,7 @@ app_ui = ui.page_fluid(
     ui.layout_sidebar(
         # Add contents to the side bar
         interface.build_sidebar_content(),
+        #ui.output_image("legends"),
 
         # Defining the content outside the sidebar 
         ui.layout_columns(
@@ -76,8 +77,8 @@ app_ui = ui.page_fluid(
                 ui.card_header(ui.tags.h2(
                     "Select Time \N{TEAR-OFF CALENDAR}")),
                 ui.div(
-                    ui.output_ui("time_step_slider"),
-                    ui.output_text_verbatim("time_index"),
+                    ui.output_ui("time_calender_selector"),
+                    #ui.output_text_verbatim("time_index"),
                     class_="center-control-content",
                 ),
                 max_height="350px",
@@ -123,6 +124,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 return None
             payload = res.json()
             time_values = payload.get("time", [])
+            time_values = [t[0:-9]for t in time_values]
             return time_values if time_values else None
         except Exception:
             return None
@@ -130,42 +132,61 @@ def server(input: Inputs, output: Outputs, session: Session):
     # Create a time slider to pick time-dimension
     @output
     @render.ui
-    def time_step_slider():  # create a time slider
+    def time_calender_selector():  # create a time slider
         try:
             time = get_time_steps()
+            print(time)
             if time is None:
                 return ui.div("No dataset loaded or time variable missing.")
-
             if time is not None:  # check if time variable exists
-                return ui.input_slider(
-                    "time_slider",
-                    "Select forecast lead time (in month)",
-                    min=0,
-                    max=len(time) - 1,
-                    animate=True,
-                    step=1,
-                    value=0,
-                    ticks=True,
+                # return ui.input_slider(
+                #     "time_slider",
+                #     "Select forecast lead time (in month)",
+                #     min=0,
+                #     max=len(time) - 1,
+                #     animate=True,
+                #     step=1,
+                #     value=0,
+                #     ticks=True,
+                # )
+                return ui.input_date(
+                    id="calender",
+                    label='',
+                    #label="Select forecast lead time (in month)",
+                    format='yyyy-MM-dd',
+                    startview='year',
+                    value=time[0],
+                    min=time[0],
+                    max=time[-1]
                 )
 
         except Exception as e:
+            print(e)
             return ui.div("No dataset loaded or time variable missing.")
     
     # Display the current time index
-    @output
-    @render.text
-    def time_index():
-        try:
-            time = get_time_steps()
-            if time is None:
-                return "No dataset loaded or time variable missing."
-            current_time = input.time_slider()
-            if current_time < 0 or current_time >= len(time):
-                return "Invalid time index selected."
+    # @output
+    # @render.text
+    # def time_index():
+    #     try:
+    #         time = get_time_steps()
+    #         if time is None:
+    #             return "No dataset loaded or time variable missing."
+    #         current_time = input.time_slider()
+    #         if current_time < 0 or current_time >= len(time):
+    #             return "Invalid time index selected."
 
-            return f"Currently at {interface.format_date(time[input.time_slider()])}"
-        except Exception:
-            return "No dataset loaded or time variable missing."
+    #         return f"Currently at {interface.format_date(time[input.time_slider()])}"
+    #     except Exception:
+    #         return "No dataset loaded or time variable missing."
+    
+    # @output
+    # @render.ui
+    # def legends():
+    #     if input.var_selector() in ["SoilTemp_inst", "SoilMoist_inst"]:
+    #         return Path('./static/probability_legend_temp.png')
+    #     else:
+    #         return ('./static/probability_legend_default.png')
     
     @render_widget
     def heatmap():
@@ -176,8 +197,8 @@ def server(input: Inputs, output: Outputs, session: Session):
         category = int(input.forecast_category_selector())
         profile = int(input.depth_selector()) if variable in ["SoilTemp_inst", "SoilMoist_inst"] else 0
         try:
-            time_idx = input.time_slider()
-            if time_idx is None:
+            time_id = input.calender()
+            if time_id is None:
                 return None
         except Exception:
             return None
@@ -188,7 +209,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         else:
            colormap = shared.colorscales.get(input.forecast_category_selector())
 
-        tile_url = (f'{TILE_SERVER_URL}/tiles/{variable}/{time_idx}/{category}/'
+        tile_url = (f'{TILE_SERVER_URL}/tiles/{variable}/{time_id}/{category}/'
                     f'{{z}}/{{x}}/{{y}}.png?colormap={colormap}&profile={profile}'
                     f'&mode=global&vmin=40&vmax=100'
         )
@@ -252,6 +273,32 @@ def server(input: Inputs, output: Outputs, session: Session):
         hover_info = HTML(value=f'<div style="{hover_style}"><b>Hover over a basin</b></div>')
         hover_control = WidgetControl(widget=hover_info, position='topright')
         m.add_control(hover_control)
+
+        # Add colorsale to map
+        colorbar_html_content = '''
+        <div style="background-color: white; 
+            border-radius: 4px;
+            padding: 8px 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            max-width: 500px; height: auto;">'''
+        colorbar_html_content += f'''
+        <div style="margin-bottom: 15px;">
+            <div style="font-size: 11px; 
+                        font-weight: bold; 
+                        color: #333; 
+                        margin-bottom: 5px;
+                        text-align: center;">
+            </div>
+            <img src="{'https://raw.githubusercontent.com/blackteacatsu/AmazonHydroViewer/refs/heads/main/static/probability_legend_temp.png' 
+                       if variable in ["SoilTemp_inst", "SoilMoist_inst"] 
+                       else 'https://raw.githubusercontent.com/blackteacatsu/AmazonHydroViewer/refs/heads/main/static/probability_legend_default.png'}" 
+                       style="width: 100%; height: auto;">
+        </div>
+        '''
+        #colorbar_html_content += '</div>'
+        legend_info = HTML(value=colorbar_html_content)
+        colorbar_control = WidgetControl(widget=legend_info, position='bottomleft')
+        m.add_control(colorbar_control)
 
         def on_hover(event, feature, **kwargs):
             pfaf_id = feature['properties'].get('PFAF_ID', 'N/A')

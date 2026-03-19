@@ -50,18 +50,18 @@ FORECAST_PCATE = {
 }
 
 # Legacy continuous colorscale names (for backward compatibility)
-colorscales = {
-    '0': 'Reds',      # Below normal
-    '1':'Greys',      # Near normal
-    '2':'Blues'        # Above normal
-}
+# colorscales = {
+#     '0': 'Reds',      # Below normal
+#     '1':'Greys',      # Near normal
+#     '2':'Blues'        # Above normal
+# }
 
-# Inverted colorscales for temperature variables
-colorscales_temp = {
-    '0': 'Blues',       # Below normal (inverted)
-    '1': 'Greys',      # Near normal
-    '2': 'Reds'      # Above normal (inverted)
-}
+# # Inverted colorscales for temperature variables
+# colorscales_temp = {
+#     '0': 'Blues',       # Below normal (inverted)
+#     '1': 'Greys',      # Near normal
+#     '2': 'Reds'      # Above normal (inverted)
+# }
 
 # general path to remote backend data
 BACKEND_DIR = 'https://raw.githubusercontent.com/Amazon-ARCHive/amazon_hydroviewer_backend/refs/heads/main/'
