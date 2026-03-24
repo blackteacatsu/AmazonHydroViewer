@@ -290,7 +290,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                         text-align: center;">
             </div>
             <img src="{'https://raw.githubusercontent.com/blackteacatsu/AmazonHydroViewer/refs/heads/main/static/probability_legend_temp.png' 
-                       if variable in ["SoilTemp_inst", "SoilMoist_inst"] 
+                       if variable in ['Tair_f_tavg', 'SoilTemp_inst'] 
                        else 'https://raw.githubusercontent.com/blackteacatsu/AmazonHydroViewer/refs/heads/main/static/probability_legend_default.png'}" 
                        style="width: 100%; height: auto;">
         </div>
